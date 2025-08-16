@@ -1,21 +1,25 @@
 use std::fs;
 
 mod get_markdown;
-mod render_html;
 
 fn main() -> color_eyre::eyre::Result<()> {
     color_eyre::install()?;
-    let blogs = get_markdown::get_blogs()?;
+    let blogs: get_markdown::BlogList = get_markdown::get_blogs()?;
     let mut handlebars = handlebars::Handlebars::new();
     handlebars.register_template_file("blog", "./assets/templates/blog.html")?;
 
-    // make output if it doesnt exist;
-    match fs::create_dir_all("./output/posts") {
-        Ok(_) => {}
-        Err(_) => {}
-    };
+    // Remove otuput dir
+    fs::remove_dir_all("./output")?;
+    // make output dir
+    fs::create_dir_all("./output/posts")?;
 
-    for blog in blogs {
+    for blog in blogs.blogs {
+        println!("Rendering Blog: \"{}\"", blog.metadata.title);
+
+        if !blog.metadata.published {
+            continue;
+        }
+
         let blog_html = blog.to_blog_html(&handlebars)?;
 
         fs::write(

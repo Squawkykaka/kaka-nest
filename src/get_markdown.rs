@@ -12,6 +12,13 @@ pub(crate) struct Blog {
     pub metadata: BlogMetadata,
     pub contents: String,
 }
+impl Blog {
+    pub(crate) fn to_blog_html(&self, handlebars: &handlebars::Handlebars) -> Result<String> {
+        let rendered_string = handlebars.render("blog", self)?;
+
+        Ok(rendered_string)
+    }
+}
 
 #[derive(Serialize, Deserialize, Debug)]
 pub(crate) struct BlogMetadata {
@@ -21,8 +28,16 @@ pub(crate) struct BlogMetadata {
     pub tags: Vec<String>,
 }
 
-pub fn get_blogs() -> Result<Vec<Blog>> {
-    let mut blogs: Vec<Blog> = Vec::new();
+/// A struct containing all currently exisiting blogs & tags
+#[derive(Default, Debug)]
+pub(crate) struct BlogList {
+    pub blogs: Vec<Blog>,
+    pub existing_tags: Vec<String>,
+}
+
+pub fn get_blogs() -> Result<BlogList> {
+    let mut blog_list = BlogList::default();
+
     let mut pullmark_options = Options::empty();
     pullmark_options.insert(Options::ENABLE_WIKILINKS);
     pullmark_options.insert(Options::ENABLE_STRIKETHROUGH);
@@ -52,13 +67,21 @@ pub fn get_blogs() -> Result<Vec<Blog>> {
 
         let blog_metadata: BlogMetadata = serde_yaml::from_str(blog_metadata_string)?;
 
-        blogs.push(Blog {
+        // Find better way not using clone
+        blog_list
+            .existing_tags
+            .append(&mut blog_metadata.tags.clone());
+        blog_list.blogs.push(Blog {
             metadata: blog_metadata,
             contents: html_output,
         });
     }
 
-    Ok(blogs)
+    blog_list
+        .existing_tags
+        .dedup_by(|a, b| a.eq_ignore_ascii_case(b));
+
+    Ok(blog_list)
 }
 
 fn get_blog_paths() -> Result<Vec<PathBuf>> {

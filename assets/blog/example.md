@@ -1,16 +1,16 @@
 ---
 date: 11/08/2025
-title: Markdown Stuff
+title: An example for my blog renderr
 published: true
 tags:
   - "#test"
-  - "#rust"
-  - "#weasel"
+  - "#2"
+  - "#3"
 ---
 
 # Hello World!
 
-This is a ~test~ for _awsome_ **rusty** _blog_ `software` of
+This is a ~example~ for _awsome_ **rusty** _blog_ `software` of
 
 ```
 doom
