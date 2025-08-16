@@ -12,8 +12,8 @@ tags:
 
 This is a ~test~ for _awsome_ **rusty** _blog_ `software` of
 
-```
-doom
+```rust
+println!("Hello World")
 ```
 
 > [!NOTE] Thing

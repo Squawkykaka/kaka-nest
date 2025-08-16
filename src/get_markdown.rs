@@ -9,6 +9,7 @@ use serde::{Deserialize, Serialize};
 
 #[derive(Debug, Serialize)]
 pub(crate) struct Blog {
+    pub id: u32,
     pub metadata: BlogMetadata,
     pub contents: String,
 }
@@ -37,6 +38,7 @@ pub(crate) struct BlogList {
 
 pub fn get_blogs() -> Result<BlogList> {
     let mut blog_list = BlogList::default();
+    let mut id: u32 = 0;
 
     let mut pullmark_options = Options::empty();
     pullmark_options.insert(Options::ENABLE_WIKILINKS);
@@ -72,11 +74,17 @@ pub fn get_blogs() -> Result<BlogList> {
             .existing_tags
             .append(&mut blog_metadata.tags.clone());
         blog_list.blogs.push(Blog {
+            id,
             metadata: blog_metadata,
             contents: html_output,
         });
+
+        id += 1;
     }
 
+    blog_list
+        .existing_tags
+        .sort_by(|a, b| a.to_ascii_lowercase().cmp(&b.to_ascii_lowercase()));
     blog_list
         .existing_tags
         .dedup_by(|a, b| a.eq_ignore_ascii_case(b));
