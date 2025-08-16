@@ -1,6 +1,7 @@
 use std::fs;
 
 mod get_markdown;
+mod highlight;
 
 fn main() -> color_eyre::eyre::Result<()> {
     color_eyre::install()?;
@@ -15,8 +16,6 @@ fn main() -> color_eyre::eyre::Result<()> {
     };
     // make output dir
     fs::create_dir_all("./output/posts")?;
-
-    dbg!(blogs.existing_tags);
 
     // Output all blogs.
     for blog in blogs.blogs {

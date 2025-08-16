@@ -4,8 +4,10 @@ use std::{
 };
 
 use color_eyre::eyre::{Ok, Result};
-use pulldown_cmark::{Options, Parser};
+use pulldown_cmark::{Event, Options, Parser};
 use serde::{Deserialize, Serialize};
+
+use crate::highlight::highlight_codeblocks;
 
 #[derive(Debug, Serialize)]
 pub(crate) struct Blog {
@@ -53,10 +55,12 @@ pub fn get_blogs() -> Result<BlogList> {
 
         // Generate HTML
         let parser = Parser::new_ext(&blog_contents, pullmark_options);
+        let parser = highlight_codeblocks(parser);
+
         let mut html_output = String::new();
         pulldown_cmark::html::push_html(&mut html_output, parser);
 
-        // get yaml options
+        // get metadata options
         let blog_metadata_string = match blog_contents.split("---").nth(1) {
             Some(blog_metadata) => blog_metadata,
             None => {
