@@ -32,7 +32,8 @@ let parser = parser.map(move |event| {
 });
 ```
 
-> Ok... Doesnt look too bad.
+> [!CAUTION]
+> Thats what they thought...
 
 Yeah? Well it took me **2** hours to decyphyr the system to be able to insert the syntax highlighting.
 
@@ -71,4 +72,4 @@ let parser = parser.map(move |event| {
 });
 ```
 
-The formatting code itself is an abomination, and i know theres probably a much better way of achieving it. **BUT THATS FOR FUTURE ME** so ill deal with that later™ 
+The formatting code itself? that is an abomination, and i know theres probably a much better way of achieving it. **BUT THATS FOR FUTURE ME** so ill deal with that later™
