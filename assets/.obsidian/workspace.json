@@ -13,12 +13,12 @@
             "state": {
               "type": "markdown",
               "state": {
-                "file": "blog/test.md",
+                "file": "blog/adding syntax highlighting.md",
                 "mode": "source",
                 "source": false
               },
               "icon": "lucide-file",
-              "title": "test"
+              "title": "adding syntax highlighting"
             }
           }
         ]
@@ -170,9 +170,11 @@
   },
   "active": "26f6ed1153d911b1",
   "lastOpenFiles": [
+    "blog/example.md",
+    "blog/adding syntax highlighting.md",
+    "blog/test.md",
     "blog/test1.md",
     "blog/test1..md",
-    "blog/example.md",
     "templates/blog.html",
     "templates"
   ]

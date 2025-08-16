@@ -19,11 +19,11 @@ fn main() -> color_eyre::eyre::Result<()> {
 
     // Output all blogs.
     for blog in blogs.blogs {
-        println!("Rendering Blog {}: {}", blog.id, blog.metadata.title);
-
         if !blog.metadata.published {
             continue;
         }
+
+        println!("Rendering Blog {}: {}", blog.id, blog.metadata.title);
 
         let blog_html = blog.to_blog_html(&handlebars)?;
 

@@ -32,6 +32,7 @@ pub(crate) fn highlight_codeblocks(parser: Parser<'_>) -> impl Iterator<Item = E
                     // Add replacments for different langs, e.g. js to javascript
                     let lang = match lang.as_str() {
                         "js" => "javascript",
+                        "rs" => "rust",
                         _ => lang,
                     };
 

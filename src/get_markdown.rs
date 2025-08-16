@@ -46,6 +46,7 @@ pub fn get_blogs() -> Result<BlogList> {
     pullmark_options.insert(Options::ENABLE_WIKILINKS);
     pullmark_options.insert(Options::ENABLE_STRIKETHROUGH);
     pullmark_options.insert(Options::ENABLE_YAML_STYLE_METADATA_BLOCKS);
+    pullmark_options.insert(Options::ENABLE_TASKLISTS);
 
     let blog_paths = get_blog_paths()?;
 
