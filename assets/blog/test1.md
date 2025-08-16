@@ -16,6 +16,10 @@ Check out this _cool_ **Python** snippet `demo`:
 print("Hello World")
 ```
 
+```js
+let bog = 5;
+```
+
 [!TIP] Reminder
 Python makes things simple and neat
 Easy to learn, fun to use!

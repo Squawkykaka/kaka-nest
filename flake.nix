@@ -56,8 +56,8 @@
 
           # Extra inputs can be added here; cargo and rustc are provided by default.
           packages = [
-            pkgs.sqlx-cli
-            pkgs.sqlite
+            # pkgs.sqlx-cli
+            # pkgs.sqlite
             # pkgs.ripgrep
           ];
         };

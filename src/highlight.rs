@@ -5,6 +5,7 @@ use pulldown_cmark::{CodeBlockKind, Event, Parser, Tag, TagEnd};
 use syntastica::renderer::HtmlRenderer;
 use syntastica_parsers::{Lang, LanguageSetImpl};
 
+/// Gets every codeblock in a pullmark parser and adds syntax highlighting to the html
 pub(crate) fn highlight_codeblocks(parser: Parser<'_>) -> impl Iterator<Item = Event<'_>> {
     let mut in_code_block = false;
     let mut code_lang: Option<String> = None;
@@ -28,6 +29,12 @@ pub(crate) fn highlight_codeblocks(parser: Parser<'_>) -> impl Iterator<Item = E
                 // Leaving code block: highlight
                 in_code_block = false;
                 let highlighted = if let Some(lang) = &code_lang {
+                    // Add replacments for different langs, e.g. js to javascript
+                    let lang = match lang.as_str() {
+                        "js" => "javascript",
+                        _ => lang,
+                    };
+
                     if let Ok(syntax) = Lang::from_str(lang) {
                         let highlighted_code = syntastica::highlight(
                             &code_buffer,
@@ -38,7 +45,10 @@ pub(crate) fn highlight_codeblocks(parser: Parser<'_>) -> impl Iterator<Item = E
                         )
                         .expect("Failed to process code block");
 
-                        format!("<pre><code>{}</code></pre>", highlighted_code)
+                        format!(
+                            "<div><p>{}</p><pre><code>{}</code></pre></div>",
+                            lang, highlighted_code
+                        )
                     } else {
                         // Fallback: plain pre/code
                         format!("<pre><code>{}</code></pre>", encode_text(&code_buffer))
