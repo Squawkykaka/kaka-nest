@@ -29,6 +29,11 @@ fn main() -> color_eyre::eyre::Result<()> {
 
         fs::write(format!("./output/posts/{}.html", blog.id), blog_html)?;
     }
+    // Copy over fonts
+    fs::copy(
+        "./assets/fonts/Iosevka-Regular.ttf",
+        "./output/Iosevka-Regular.ttf",
+    )?;
 
     // Output all tags
 
