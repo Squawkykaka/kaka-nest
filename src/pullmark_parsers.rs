@@ -42,14 +42,8 @@ pub(crate) fn highlight_codeblocks(parser: Parser<'_>) -> impl Iterator<Item = E
             Event::End(TagEnd::CodeBlock) if in_code_block => {
                 // Leaving code block: highlight
                 in_code_block = false;
-                let highlighted = if let Some(lang) = &code_lang {
-                    // Add replacments for different langs, e.g. js to javascript
-                    let lang = match lang.as_str() {
-                        "js" => "javascript",
-                        "rs" => "rust",
-                        _ => lang,
-                    };
 
+                let highlighted = if let Some(lang) = &code_lang {
                     if let Ok(syntax) = Lang::from_str(lang) {
                         let highlighted_code = processor.process(&code_buffer, syntax).unwrap();
 
@@ -91,36 +85,65 @@ pub(crate) fn highlight_codeblocks(parser: Parser<'_>) -> impl Iterator<Item = E
 pub(crate) fn format_codeblocks<'a>(
     parser: impl Iterator<Item = Event<'a>>,
 ) -> impl Iterator<Item = Event<'a>> {
-    let mut in_blockquote = false;
-    let mut code_buffer: Vec<String> = Vec::new();
+    struct FormatBlockquotes<'a, I: Iterator<Item = Event<'a>>> {
+        inner: I,
+        in_blockquote: bool,
+        code_buffer: Vec<String>,
+    }
 
-    let parser = parser.map(move |event| {
-        return match event {
-            Event::Start(Tag::BlockQuote(_)) => {
-                in_blockquote = true;
+    impl<'a, I: Iterator<Item = Event<'a>>> Iterator for FormatBlockquotes<'a, I> {
+        type Item = Event<'a>;
 
-                Event::Html("".into())
+        fn next(&mut self) -> Option<Self::Item> {
+            while let Some(event) = self.inner.next() {
+                match event {
+                    Event::Start(Tag::BlockQuote(_)) => {
+                        self.in_blockquote = true;
+                        self.code_buffer.clear();
+                        return Some(Event::Html("".into()));
+                    }
+                    Event::Text(ref text) if self.in_blockquote => {
+                        self.code_buffer.push(text.to_string());
+                        return Some(Event::Html("".into()));
+                    }
+                    Event::End(TagEnd::BlockQuote(_)) if self.in_blockquote => {
+                        self.in_blockquote = false;
+                        // Example: parse blockquote type from first line
+                        let blockquote_type = if let Some(first) = self.code_buffer.get(1) {
+                            let without_first_char = &first[1..]; // skips the first character
+
+                            match without_first_char {
+                                "question" => BlockquoteTypes::Question,
+                                // Add more types as needed
+                                _ => panic!("Unknown blockquote type"),
+                            }
+                        } else {
+                            panic!("Empty blockquote");
+                        };
+                        let contents = self.code_buffer[1..].join("\n");
+                        let rendered_contents = HANDLEBARS
+                            .render(
+                                "blockquote",
+                                &BlockQuote {
+                                    blockquote_type,
+                                    contents,
+                                },
+                            )
+                            .expect("Failed to render blockquote");
+                        return Some(Event::Html(rendered_contents.into()));
+                    }
+                    _ => return Some(event),
+                }
             }
-            Event::Text(text) if in_blockquote => {
-                // FIXME chanege to maybe not use clone
-                code_buffer.push(text.clone().to_string());
+            None
+        }
+    }
 
-                // event
-                Event::Html("".into())
-            }
-            Event::End(TagEnd::BlockQuote(_)) if in_blockquote => {
-                // Leaving code block: highlight
-                in_blockquote = false;
-
-                let parsed_codeblock = parse_blockquotes(&mut code_buffer, &HANDLEBARS);
-
-                Event::Html(parsed_codeblock.into())
-            }
-            _ => event,
-        };
-    });
-
-    parser
+    FormatBlockquotes {
+        inner: parser,
+        in_blockquote: false,
+        code_buffer: Vec::new(),
+    }
 }
 
 #[derive(Serialize)]
@@ -135,33 +158,4 @@ enum BlockquoteTypes {
 struct BlockQuote {
     blockquote_type: BlockquoteTypes,
     contents: String,
-}
-
-fn parse_blockquotes(input: &mut Vec<String>, handlebars: &Handlebars) -> String {
-    let (blockquote_string, contents) = input.split_at_mut(3);
-
-    // Get the type of blockquote
-    let blockquote_string = blockquote_string[1].split_off(1);
-
-    let blockquote_type = match blockquote_string.as_str() {
-        // "confused" => BlockquoteTypes::Confused,
-        "question" => BlockquoteTypes::Question,
-        _ => panic!("Unknown blockquote type"),
-    };
-    // Handlebars load the template and place stuff in
-    let rendered_contents = handlebars
-        .render(
-            "blockquote",
-            &BlockQuote {
-                blockquote_type,
-                contents: contents.join("\n"),
-            },
-        )
-        .expect("Failed to render blockquote");
-
-    rendered_contents
-
-    // Return
-
-    // .to_string()
 }
