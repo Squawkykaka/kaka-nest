@@ -9,6 +9,12 @@ use syntastica_parsers::{Lang, LanguageSetImpl};
 
 use crate::HANDLEBARS;
 
+#[derive(Serialize)]
+struct CodeBlock {
+    lang: String,
+    contents: String,
+}
+
 /// Gets every codeblock in a pullmark parser and adds syntax highlighting to the html
 pub(crate) fn highlight_codeblocks(parser: Parser<'_>) -> impl Iterator<Item = Event<'_>> {
     let mut in_code_block = false;
@@ -50,10 +56,17 @@ pub(crate) fn highlight_codeblocks(parser: Parser<'_>) -> impl Iterator<Item = E
                         )
                         .expect("Failed to process code block");
 
-                        format!(
-                            "<div><p>{}</p><pre><code>{}</code></pre></div>",
-                            lang, highlighted_code
-                        )
+                        let rendered_html = HANDLEBARS
+                            .render(
+                                "codeblock",
+                                &CodeBlock {
+                                    lang: lang.to_string(),
+                                    contents: highlighted_code,
+                                },
+                            )
+                            .expect("Failed to render html codeblock");
+
+                        rendered_html
                     } else {
                         // Fallback: plain pre/code
                         format!("<pre><code>{}</code></pre>", encode_text(&code_buffer))

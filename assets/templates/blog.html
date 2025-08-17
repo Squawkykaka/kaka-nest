@@ -26,6 +26,19 @@
     <div>{{{ contents }}}</div>
   </body>
   <style>
+    @font-face {
+      font-family: "Iosevka";
+      src: url(../Iosevka-Regular.ttf), format("truetype");
+    }
+
+    code {
+      font-family: "Iosevka";
+      font-optical-sizing: auto;
+      font-weight: 400;
+      display: block;
+      margin-top: 40px;
+    }
+
     p,
     li,
     strong,
@@ -46,6 +59,31 @@
       display: flex;
       padding: 10px;
       color: white;
+    }
+
+    .codeblock {
+      background-color: #31353f;
+      width: fit-content;
+      padding: 10px;
+      /* padding-top: 20px; */
+      position: relative;
+      border: 4px solid #393f4a;
+      border-radius: 10px;
+
+      font-size: 120%;
+    }
+
+    .lang-label {
+      background-color: #393f4a;
+      width: fit-content;
+      padding: 4px 8px;
+      border-radius: 0 0px 0 5px;
+      margin: 0;
+      position: absolute;
+      top: 0;
+      right: 0;
+      font-size: 20px;
+      color: #ffffff;
     }
   </style>
 </html>

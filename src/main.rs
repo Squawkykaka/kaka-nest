@@ -18,6 +18,9 @@ lazy_static! {
         handlebars
             .register_template_file("blockquote", "./assets/templates/blockquote.html")
             .unwrap();
+        handlebars
+            .register_template_file("codeblock", "./assets/templates/codeblock.html")
+            .unwrap();
 
         handlebars
     };
