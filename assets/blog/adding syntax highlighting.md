@@ -33,7 +33,7 @@ let parser = parser.map(move |event| {
 ```
 
 > [!question]
-> Thats what they thought...
+> Thats what they thought... mwahahahaha
 
 Yeah? Well it took me **2** hours to decyphyr the system to be able to insert the syntax highlighting.
 

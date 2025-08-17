@@ -5,7 +5,7 @@ use serde::Serialize;
 use syntastica::renderer::HtmlRenderer;
 use syntastica_parsers::Lang;
 
-use crate::{HANDLEBARS, SYNTAX_PROCESSOR};
+use crate::{HANDLEBARS, TL_PROCESSOR};
 
 #[derive(Serialize)]
 struct CodeBlock {
@@ -58,11 +58,16 @@ pub(crate) fn highlight_codeblocks(parser: Parser<'_>) -> impl Iterator<Item = E
 
                         let highlighted_code = if let Some(lang) = self.code_lang.as_deref() {
                             if let Ok(syntax) = Lang::from_str(lang) {
-                                let highlighted_code = SYNTAX_PROCESSOR
-                                    .lock()
-                                    .expect("Failed to lock the syntax processer")
-                                    .process(&self.code_buffer, syntax)
-                                    .unwrap();
+                                let highlighted_code =
+                                    match TL_PROCESSOR.with_borrow_mut(|processer| {
+                                        processer.process(&self.code_buffer, syntax).ok()
+                                    }) {
+                                        Some(o) => o,
+                                        None => {
+                                            println!("Highlighting code failed");
+                                            std::process::exit(0);
+                                        }
+                                    };
 
                                 let highlighted_code = syntastica::render(
                                     &highlighted_code,

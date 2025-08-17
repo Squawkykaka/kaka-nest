@@ -26,13 +26,13 @@ lazy_static! {
 
         handlebars
     };
+    pub static ref LEAKED_LANGSET: &'static LanguageSetImpl =
+        Box::leak(Box::new(LanguageSetImpl::new()));
 }
 
-lazy_static! {
-    pub static ref SYNTAX_PROCESSOR: Mutex<Processor<'static, LanguageSetImpl>> = {
-        let leaked = Box::leak(Box::new(LanguageSetImpl::new()));
-        Mutex::new(Processor::new(leaked))
-    };
+thread_local! {
+    pub static TL_PROCESSOR: std::cell::RefCell<Processor<'static, LanguageSetImpl>> =
+        std::cell::RefCell::new(Processor::new(*LEAKED_LANGSET));
 }
 
 fn main() -> color_eyre::eyre::Result<()> {
