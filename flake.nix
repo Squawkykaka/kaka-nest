@@ -59,6 +59,7 @@
             # pkgs.sqlx-cli
             # pkgs.sqlite
             pkgs.hyperfine
+            pkgs.linuxKernel.packages.linux_zen.perf
           ];
         };
       }

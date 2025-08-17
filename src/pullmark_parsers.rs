@@ -2,9 +2,10 @@ use std::str::FromStr;
 
 use handlebars::Handlebars;
 use html_escape::encode_text;
+use lazy_static::lazy_static;
 use pulldown_cmark::{CodeBlockKind, Event, Parser, Tag, TagEnd};
 use serde::{Deserialize, Serialize};
-use syntastica::renderer::HtmlRenderer;
+use syntastica::{Processor, language_set, renderer::HtmlRenderer};
 use syntastica_parsers::{Lang, LanguageSetImpl};
 
 use crate::HANDLEBARS;
@@ -20,6 +21,9 @@ pub(crate) fn highlight_codeblocks(parser: Parser<'_>) -> impl Iterator<Item = E
     let mut in_code_block = false;
     let mut code_lang: Option<String> = None;
     let mut code_buffer = String::new();
+
+    let language_set: &'static LanguageSetImpl = Box::leak(Box::new(LanguageSetImpl::new()));
+    let mut processor = Processor::new(language_set);
 
     let parser = parser.map(move |event| {
         match event {
@@ -47,14 +51,13 @@ pub(crate) fn highlight_codeblocks(parser: Parser<'_>) -> impl Iterator<Item = E
                     };
 
                     if let Ok(syntax) = Lang::from_str(lang) {
-                        let highlighted_code = syntastica::highlight(
-                            &code_buffer,
-                            syntax,
-                            &LanguageSetImpl::new(),
+                        let highlighted_code = processor.process(&code_buffer, syntax).unwrap();
+
+                        let highlighted_code = syntastica::render(
+                            &highlighted_code,
                             &mut HtmlRenderer,
                             syntastica_themes::one::dark(),
-                        )
-                        .expect("Failed to process code block");
+                        );
 
                         let rendered_html = HANDLEBARS
                             .render(
