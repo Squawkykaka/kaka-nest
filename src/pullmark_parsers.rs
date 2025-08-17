@@ -5,7 +5,7 @@ use serde::Serialize;
 use syntastica::renderer::HtmlRenderer;
 use syntastica_parsers::Lang;
 
-use crate::{HANDLEBARS, SYNTAX_PROCESSER};
+use crate::{HANDLEBARS, SYNTAX_PROCESSOR};
 
 #[derive(Serialize)]
 struct CodeBlock {
@@ -13,16 +13,29 @@ struct CodeBlock {
     contents: String,
 }
 
+#[derive(Serialize)]
+#[serde(rename_all = "lowercase")]
+enum BlockquoteTypes {
+    Question,
+    // Aha,
+}
+
+#[derive(Serialize)]
+struct BlockQuote<'a> {
+    blockquote_type: Option<BlockquoteTypes>,
+    contents: &'a str,
+}
+
 /// Gets every codeblock in a pullmark parser and adds syntax highlighting to the html
 pub(crate) fn highlight_codeblocks(parser: Parser<'_>) -> impl Iterator<Item = Event<'_>> {
-    struct HighlightBlockquotes<'a, I: Iterator<Item = Event<'a>>> {
+    struct HighlightCodeblocks<'a, I: Iterator<Item = Event<'a>>> {
         inner: I,
         in_codeblock: bool,
-        code_lang: Option<CowStr<'a>>,
+        code_lang: Option<String>,
         code_buffer: String,
     }
 
-    impl<'a, I: Iterator<Item = Event<'a>>> Iterator for HighlightBlockquotes<'a, I> {
+    impl<'a, I: Iterator<Item = Event<'a>>> Iterator for HighlightCodeblocks<'a, I> {
         type Item = Event<'a>;
 
         fn next(&mut self) -> Option<Self::Item> {
@@ -30,22 +43,22 @@ pub(crate) fn highlight_codeblocks(parser: Parser<'_>) -> impl Iterator<Item = E
                 match event {
                     Event::Start(Tag::CodeBlock(CodeBlockKind::Fenced(lang))) => {
                         self.in_codeblock = true;
-                        self.code_lang = Some(lang);
+                        self.code_lang = Some(lang.to_string());
                         self.code_buffer.clear();
 
-                        return Some(Event::Html("".into()));
+                        continue;
                     }
                     Event::Text(text) if self.in_codeblock => {
                         // Collect code lines
                         self.code_buffer.push_str(&text);
-                        return Some(Event::Html("".into()));
+                        continue;
                     }
                     Event::End(TagEnd::CodeBlock) if self.in_codeblock => {
                         self.in_codeblock = false;
 
                         let highlighted_code = if let Some(lang) = self.code_lang.as_deref() {
                             if let Ok(syntax) = Lang::from_str(lang) {
-                                let highlighted_code = SYNTAX_PROCESSER
+                                let highlighted_code = SYNTAX_PROCESSOR
                                     .lock()
                                     .expect("Failed to lock the syntax processer")
                                     .process(&self.code_buffer, syntax)
@@ -87,21 +100,27 @@ pub(crate) fn highlight_codeblocks(parser: Parser<'_>) -> impl Iterator<Item = E
         }
     }
 
-    HighlightBlockquotes {
+    HighlightCodeblocks {
         inner: parser,
         in_codeblock: false,
-        code_buffer: String::new(),
+        code_buffer: String::with_capacity(1024 * 4),
         code_lang: None,
     }
 }
 
-pub(crate) fn format_codeblocks<'a>(
+/// Processes blockquotes with the format:
+///
+/// ```md
+/// > [!question]
+/// > What is the meaning of life?
+/// ```
+pub(crate) fn format_blockquotes<'a>(
     parser: impl Iterator<Item = Event<'a>>,
 ) -> impl Iterator<Item = Event<'a>> {
     struct FormatBlockquotes<'a, I: Iterator<Item = Event<'a>>> {
         inner: I,
         in_blockquote: bool,
-        code_buffer: Vec<String>,
+        blockquote_buffer: String,
     }
 
     impl<'a, I: Iterator<Item = Event<'a>>> Iterator for FormatBlockquotes<'a, I> {
@@ -112,38 +131,40 @@ pub(crate) fn format_codeblocks<'a>(
                 match event {
                     Event::Start(Tag::BlockQuote(_)) => {
                         self.in_blockquote = true;
-                        self.code_buffer.clear();
-                        return Some(Event::Html("".into()));
+                        self.blockquote_buffer.clear();
+                        continue;
                     }
-                    Event::Text(ref text) if self.in_blockquote => {
-                        self.code_buffer.push(text.to_string());
-                        return Some(Event::Html("".into()));
+                    Event::Text(text) if self.in_blockquote => {
+                        self.blockquote_buffer.push_str(&text);
+                        self.blockquote_buffer.push('\n'); // preserve line breaks
+                        continue;
                     }
                     Event::End(TagEnd::BlockQuote(_)) if self.in_blockquote => {
                         self.in_blockquote = false;
-                        // Example: parse blockquote type from first line
-                        let blockquote_type = if let Some(first) = self.code_buffer.get(1) {
-                            let without_first_char = &first[1..]; // skips the first character
 
-                            match without_first_char {
-                                "question" => BlockquoteTypes::Question,
+                        if let Some((blockquote_string, rest)) =
+                            parse_marker(&self.blockquote_buffer)
+                        {
+                            let blockquote_type = match blockquote_string.as_str() {
+                                "question" => Some(BlockquoteTypes::Question),
                                 // Add more types as needed
-                                _ => panic!("Unknown blockquote type"),
-                            }
+                                _ => None,
+                            };
+
+                            let rendered_contents = HANDLEBARS
+                                .render(
+                                    "blockquote",
+                                    &BlockQuote {
+                                        blockquote_type,
+                                        contents: &rest,
+                                    },
+                                )
+                                .expect("Failed to render blockquote");
+                            return Some(Event::Html(rendered_contents.into()));
                         } else {
-                            panic!("Empty blockquote");
+                            println!("You forgot to add a type to blockquote");
+                            continue;
                         };
-                        let contents = self.code_buffer[1..].join("\n");
-                        let rendered_contents = HANDLEBARS
-                            .render(
-                                "blockquote",
-                                &BlockQuote {
-                                    blockquote_type,
-                                    contents,
-                                },
-                            )
-                            .expect("Failed to render blockquote");
-                        return Some(Event::Html(rendered_contents.into()));
                     }
                     _ => return Some(event),
                 }
@@ -152,23 +173,48 @@ pub(crate) fn format_codeblocks<'a>(
         }
     }
 
+    let mut code_buffer = String::new();
+    code_buffer.reserve(1024 * 4);
+
     FormatBlockquotes {
         inner: parser,
         in_blockquote: false,
-        code_buffer: Vec::new(),
+        blockquote_buffer: code_buffer,
     }
 }
 
-#[derive(Serialize)]
-#[serde(rename_all = "lowercase")]
-enum BlockquoteTypes {
-    // Confused,
-    Question,
-    // Aha,
-}
+fn parse_marker(input: &str) -> Option<(String, String)> {
+    let mut lines = input.lines();
 
-#[derive(Serialize)]
-struct BlockQuote {
-    blockquote_type: BlockquoteTypes,
-    contents: String,
+    // Expect: line 1 == "[", line 2 starts with "!", line 3 == "]"
+    if lines.next()? != "[" {
+        return None;
+    }
+
+    let marker_line = lines.next()?;
+    if !marker_line.starts_with('!') {
+        return None;
+    }
+    let marker = marker_line.strip_prefix('!')?.to_string();
+
+    if lines.next()? != "]" {
+        return None;
+    }
+
+    // Collect the rest of the lines as the "value"
+    let value = lines.collect::<Vec<_>>().join("\n");
+
+    Some((marker, value))
+}
+#[cfg(test)]
+mod tests {
+    use crate::pullmark_parsers::parse_marker;
+
+    #[test]
+    fn test_parser_marker() {
+        assert_eq!(
+            parse_marker("[\n!test\n]\nThis is super neat\n"),
+            Some(("test".to_string(), "This is super neat".to_string()))
+        );
+    }
 }

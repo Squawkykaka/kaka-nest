@@ -1,8 +1,4 @@
-use std::{
-    fs,
-    path::Path,
-    sync::Mutex,
-};
+use std::{fs, path::Path, sync::Mutex};
 
 use handlebars::Handlebars;
 use lazy_static::lazy_static;
@@ -33,11 +29,9 @@ lazy_static! {
 }
 
 lazy_static! {
-    pub static ref SYNTAX_PROCESSER: Mutex<Processor<'static, LanguageSetImpl>> = {
-        let language_set: &'static LanguageSetImpl = Box::leak(Box::new(LanguageSetImpl::new()));
-        let processor = Processor::new(language_set);
-
-        processor.into()
+    pub static ref SYNTAX_PROCESSOR: Mutex<Processor<'static, LanguageSetImpl>> = {
+        let leaked = Box::leak(Box::new(LanguageSetImpl::new()));
+        Mutex::new(Processor::new(leaked))
     };
 }
 
@@ -45,11 +39,13 @@ fn main() -> color_eyre::eyre::Result<()> {
     color_eyre::install()?;
 
     let blogs: get_markdown::BlogList = get_markdown::get_blogs()?;
-    // Remove otuput dir
-    match fs::remove_dir_all("./output") {
-        Ok(_) => {}
-        Err(_) => {}
-    };
+
+    // Replace silent error swallowing
+    if Path::new("./output").exists() {
+        fs::remove_dir_all("./output")?;
+    } else {
+        fs::create_dir_all("./output/posts")?;
+    }
     // make output dirs
     fs::create_dir_all("./output/posts")?;
     fs::create_dir_all("./output/images")?;

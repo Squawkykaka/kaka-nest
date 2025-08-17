@@ -1,4 +1,6 @@
 <div class="blockquote">
+    {{#if blockquote_type }}
     <img style="width: 70; height: 70; image-rendering: pixelated;" src="../images/{{ blockquote_type }}-kaka.png" alt="">
+    {{/if}}
     <p style="align-self: center; padding-left: 10px; padding-right: 10px; font-size: large;">{{{ contents }}}</p>
 </div>

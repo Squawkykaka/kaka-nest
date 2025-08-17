@@ -12,6 +12,9 @@ tags:
 
 This is a ~example~ for _awsome_ **rusty** _blog_ `software` of
 
+> [!test]
+> This is super neat
+
 ```rust
 test1
 ```

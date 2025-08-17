@@ -9,7 +9,7 @@ use serde::{Deserialize, Serialize};
 
 use crate::{
     HANDLEBARS,
-    pullmark_parsers::{format_codeblocks, highlight_codeblocks},
+    pullmark_parsers::{format_blockquotes, highlight_codeblocks},
 };
 
 #[derive(Debug, Serialize)]
@@ -50,7 +50,6 @@ pub fn get_blogs() -> Result<BlogList> {
     pullmark_options.insert(Options::ENABLE_STRIKETHROUGH);
     pullmark_options.insert(Options::ENABLE_YAML_STYLE_METADATA_BLOCKS);
     pullmark_options.insert(Options::ENABLE_TASKLISTS);
-    // pullmark_options.insert(Options::ENABLE_GFM);
 
     let blog_paths = get_blog_paths()?;
 
@@ -61,7 +60,7 @@ pub fn get_blogs() -> Result<BlogList> {
         // Generate HTML
         let parser = Parser::new_ext(&blog_contents, pullmark_options);
         let parser = highlight_codeblocks(parser);
-        let parser = format_codeblocks(parser);
+        let parser = format_blockquotes(parser);
 
         let mut html_output = String::new();
         pulldown_cmark::html::push_html(&mut html_output, parser);
@@ -103,13 +102,15 @@ pub fn get_blogs() -> Result<BlogList> {
 }
 
 fn get_blog_paths() -> Result<Vec<PathBuf>> {
-    let path = Path::new("./assets/blog");
-
-    let files: Vec<PathBuf> = visit_dir(path)?
+    let files = visit_dir(Path::new("./assets/blog"))?
         .into_iter()
-        .filter(|file| file.extension().unwrap_or_default() == "md")
+        .filter(|file| {
+            file.extension()
+                .and_then(|ext| ext.to_str())
+                .map(|ext| ext == "md")
+                .unwrap_or(false)
+        })
         .collect();
-
     Ok(files)
 }
 
