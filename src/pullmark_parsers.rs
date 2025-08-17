@@ -1,12 +1,9 @@
 use std::str::FromStr;
 
-use handlebars::Handlebars;
-use html_escape::encode_text;
-use lazy_static::lazy_static;
 use pulldown_cmark::{CodeBlockKind, CowStr, Event, Parser, Tag, TagEnd};
-use serde::{Deserialize, Serialize};
-use syntastica::{Processor, language_set, renderer::HtmlRenderer};
-use syntastica_parsers::{Lang, LanguageSetImpl};
+use serde::Serialize;
+use syntastica::renderer::HtmlRenderer;
+use syntastica_parsers::Lang;
 
 use crate::{HANDLEBARS, SYNTAX_PROCESSER};
 

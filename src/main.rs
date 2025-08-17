@@ -1,8 +1,7 @@
 use std::{
-    cell::RefCell,
     fs,
     path::Path,
-    sync::{Mutex, RwLock},
+    sync::Mutex,
 };
 
 use handlebars::Handlebars;

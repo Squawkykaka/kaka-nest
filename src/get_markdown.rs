@@ -4,8 +4,7 @@ use std::{
 };
 
 use color_eyre::eyre::{Ok, Result};
-use handlebars::Handlebars;
-use pulldown_cmark::{Event, Options, Parser};
+use pulldown_cmark::{Options, Parser};
 use serde::{Deserialize, Serialize};
 
 use crate::{
