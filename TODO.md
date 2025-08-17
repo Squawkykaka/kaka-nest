@@ -1,3 +1,9 @@
+## Urgent
+
+- [ ] fix huge performance regression with a lot of codeblocks
+
+## Shiny
+
 - [ ] replace handlebars with tera, and improve the templating
   - [ ] add helper functions
 - [ ] improve error handling

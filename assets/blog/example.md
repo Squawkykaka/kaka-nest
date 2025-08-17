@@ -12,8 +12,48 @@ tags:
 
 This is a ~example~ for _awsome_ **rusty** _blog_ `software` of
 
+```rust
+test1
 ```
-doom
+
+```rust
+test1
+```
+
+```rust
+test1
+```
+
+```rust
+test1
+```
+
+```rust
+test1
+```
+
+```rust
+test1
+```
+
+```rust
+test1
+```
+
+```rust
+test1
+```
+
+```rust
+test1
+```
+
+```rust
+test1
+```
+
+```rust
+test1
 ```
 
 > [!question]

@@ -58,7 +58,7 @@
           packages = [
             # pkgs.sqlx-cli
             # pkgs.sqlite
-            # pkgs.ripgrep
+            pkgs.hyperfine
           ];
         };
       }
