@@ -499,6 +499,7 @@ dependencies = [
  "color-eyre",
  "handlebars",
  "html-escape",
+ "lazy_static",
  "pulldown-cmark",
  "serde",
  "serde_yaml",

@@ -4,10 +4,14 @@ use std::{
 };
 
 use color_eyre::eyre::{Ok, Result};
+use handlebars::Handlebars;
 use pulldown_cmark::{Event, Options, Parser};
 use serde::{Deserialize, Serialize};
 
-use crate::highlight::highlight_codeblocks;
+use crate::{
+    HANDLEBARS,
+    pullmark_parsers::{format_codeblocks, highlight_codeblocks},
+};
 
 #[derive(Debug, Serialize)]
 pub(crate) struct Blog {
@@ -16,8 +20,8 @@ pub(crate) struct Blog {
     pub contents: String,
 }
 impl Blog {
-    pub(crate) fn to_blog_html(&self, handlebars: &handlebars::Handlebars) -> Result<String> {
-        let rendered_string = handlebars.render("blog", self)?;
+    pub(crate) fn to_blog_html(&self) -> Result<String> {
+        let rendered_string = HANDLEBARS.render("blog", self)?;
 
         Ok(rendered_string)
     }
@@ -47,6 +51,7 @@ pub fn get_blogs() -> Result<BlogList> {
     pullmark_options.insert(Options::ENABLE_STRIKETHROUGH);
     pullmark_options.insert(Options::ENABLE_YAML_STYLE_METADATA_BLOCKS);
     pullmark_options.insert(Options::ENABLE_TASKLISTS);
+    // pullmark_options.insert(Options::ENABLE_GFM);
 
     let blog_paths = get_blog_paths()?;
 
@@ -57,6 +62,7 @@ pub fn get_blogs() -> Result<BlogList> {
         // Generate HTML
         let parser = Parser::new_ext(&blog_contents, pullmark_options);
         let parser = highlight_codeblocks(parser);
+        let parser = format_codeblocks(parser);
 
         let mut html_output = String::new();
         pulldown_cmark::html::push_html(&mut html_output, parser);
@@ -108,7 +114,7 @@ fn get_blog_paths() -> Result<Vec<PathBuf>> {
     Ok(files)
 }
 
-fn visit_dir(dir: &Path) -> Result<Vec<PathBuf>> {
+pub(crate) fn visit_dir(dir: &Path) -> Result<Vec<PathBuf>> {
     let mut files: Vec<PathBuf> = Vec::new();
 
     for entry in fs::read_dir(dir)? {

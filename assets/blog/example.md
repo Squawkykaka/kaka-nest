@@ -16,6 +16,6 @@ This is a ~example~ for _awsome_ **rusty** _blog_ `software` of
 doom
 ```
 
-> [!NOTE] Thing
+> [!question]
 > That is absolutall epic
 > Wanna know whY?

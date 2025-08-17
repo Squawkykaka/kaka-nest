@@ -11,7 +11,7 @@ I'm making my own blog system, which allows me to write my posts in [Obsidian](h
 
 - [ ] A theme to my website, making it look better than just html
 - [ ] Adding a sql database, pushing new posts and only parsing new ones
-- [ ] Little "mini avatars", which can show different expressions
+- [x] Little "mini avatars", which can show different expressions
 - [ ] A server where it uploads to something like cloudflare pages so people can view my site.
 - [ ] A searching system and tagging system, so people can find posts based on tags.
 - [ ] Live reloading the websites html, whenever changes happen
@@ -32,7 +32,7 @@ let parser = parser.map(move |event| {
 });
 ```
 
-> [!CAUTION]
+> [!question]
 > Thats what they thought...
 
 Yeah? Well it took me **2** hours to decyphyr the system to be able to insert the syntax highlighting.

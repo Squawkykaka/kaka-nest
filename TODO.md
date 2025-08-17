@@ -1,0 +1,12 @@
+- [ ] replace handlebars with tera, and improve the templating
+  - [ ] add helper functions
+- [ ] improve error handling
+  - [ ] add warning for invalid posts, and languages without tree-sitter parsers
+- [ ] A theme to my website, making it look better than just html
+- [ ] Adding a sql database, pushing new posts and only parsing new ones
+- [x] Little "mini avatars", which can show different expressions
+- [ ] A server where it uploads to something like cloudflare pages so people can view my site.
+- [ ] A searching system and tagging system, so people can find posts based on tags.
+- [ ] Live reloading the websites html, whenever changes happen
+- [ ] Add a way to generate a new post easily, and admin options when inside the website.
+- [ ] Use a better font, like [Iosevka](https://github.com/be5invis/Iosevka)
