@@ -3,12 +3,12 @@ use std::str::FromStr;
 use handlebars::Handlebars;
 use html_escape::encode_text;
 use lazy_static::lazy_static;
-use pulldown_cmark::{CodeBlockKind, Event, Parser, Tag, TagEnd};
+use pulldown_cmark::{CodeBlockKind, CowStr, Event, Parser, Tag, TagEnd};
 use serde::{Deserialize, Serialize};
 use syntastica::{Processor, language_set, renderer::HtmlRenderer};
 use syntastica_parsers::{Lang, LanguageSetImpl};
 
-use crate::HANDLEBARS;
+use crate::{HANDLEBARS, SYNTAX_PROCESSER};
 
 #[derive(Serialize)]
 struct CodeBlock {
@@ -18,68 +18,84 @@ struct CodeBlock {
 
 /// Gets every codeblock in a pullmark parser and adds syntax highlighting to the html
 pub(crate) fn highlight_codeblocks(parser: Parser<'_>) -> impl Iterator<Item = Event<'_>> {
-    let mut in_code_block = false;
-    let mut code_lang: Option<String> = None;
-    let mut code_buffer = String::new();
+    struct HighlightBlockquotes<'a, I: Iterator<Item = Event<'a>>> {
+        inner: I,
+        in_codeblock: bool,
+        code_lang: Option<CowStr<'a>>,
+        code_buffer: String,
+    }
 
-    let language_set: &'static LanguageSetImpl = Box::leak(Box::new(LanguageSetImpl::new()));
-    let mut processor = Processor::new(language_set);
+    impl<'a, I: Iterator<Item = Event<'a>>> Iterator for HighlightBlockquotes<'a, I> {
+        type Item = Event<'a>;
 
-    let parser = parser.map(move |event| {
-        match event {
-            Event::Start(Tag::CodeBlock(CodeBlockKind::Fenced(lang))) => {
-                // Entering a code block
-                in_code_block = true;
-                code_lang = Some(lang.to_string());
-                code_buffer.clear();
-                Event::Html("".into()) // suppress original
-            }
-            Event::Text(text) if in_code_block => {
-                // Collect code lines
-                code_buffer.push_str(&text);
-                Event::Html("".into()) // suppress original
-            }
-            Event::End(TagEnd::CodeBlock) if in_code_block => {
-                // Leaving code block: highlight
-                in_code_block = false;
+        fn next(&mut self) -> Option<Self::Item> {
+            while let Some(event) = self.inner.next() {
+                match event {
+                    Event::Start(Tag::CodeBlock(CodeBlockKind::Fenced(lang))) => {
+                        self.in_codeblock = true;
+                        self.code_lang = Some(lang);
+                        self.code_buffer.clear();
 
-                let highlighted = if let Some(lang) = &code_lang {
-                    if let Ok(syntax) = Lang::from_str(lang) {
-                        let highlighted_code = processor.process(&code_buffer, syntax).unwrap();
-
-                        let highlighted_code = syntastica::render(
-                            &highlighted_code,
-                            &mut HtmlRenderer,
-                            syntastica_themes::one::dark(),
-                        );
-
-                        let rendered_html = HANDLEBARS
-                            .render(
-                                "codeblock",
-                                &CodeBlock {
-                                    lang: lang.to_string(),
-                                    contents: highlighted_code,
-                                },
-                            )
-                            .expect("Failed to render html codeblock");
-
-                        rendered_html
-                    } else {
-                        // Fallback: plain pre/code
-                        format!("<pre><code>{}</code></pre>", encode_text(&code_buffer))
+                        return Some(Event::Html("".into()));
                     }
-                } else {
-                    // No language given
-                    format!("<pre><code>{}</code></pre>", encode_text(&code_buffer))
-                };
+                    Event::Text(text) if self.in_codeblock => {
+                        // Collect code lines
+                        self.code_buffer.push_str(&text);
+                        return Some(Event::Html("".into()));
+                    }
+                    Event::End(TagEnd::CodeBlock) if self.in_codeblock => {
+                        self.in_codeblock = false;
 
-                Event::Html(highlighted.into())
+                        let highlighted_code = if let Some(lang) = self.code_lang.as_deref() {
+                            if let Ok(syntax) = Lang::from_str(lang) {
+                                let highlighted_code = SYNTAX_PROCESSER
+                                    .lock()
+                                    .expect("Failed to lock the syntax processer")
+                                    .process(&self.code_buffer, syntax)
+                                    .unwrap();
+
+                                let highlighted_code = syntastica::render(
+                                    &highlighted_code,
+                                    &mut HtmlRenderer,
+                                    syntastica_themes::one::dark(),
+                                );
+
+                                let rendered_html = HANDLEBARS
+                                    .render(
+                                        "codeblock",
+                                        &CodeBlock {
+                                            lang: lang.to_string(),
+                                            contents: highlighted_code,
+                                        },
+                                    )
+                                    .expect("Failed to render html codeblock");
+
+                                rendered_html
+                            } else {
+                                // If language parsing fails, just escape the code
+                                html_escape::encode_text(&self.code_buffer).to_string()
+                            }
+                        } else {
+                            // If no language is specified, just escape the code
+                            html_escape::encode_text(&self.code_buffer).to_string()
+                        };
+
+                        return Some(Event::Html(highlighted_code.into()));
+                    }
+
+                    _ => return Some(event),
+                }
             }
-
-            _ => event,
+            None
         }
-    });
-    parser
+    }
+
+    HighlightBlockquotes {
+        inner: parser,
+        in_codeblock: false,
+        code_buffer: String::new(),
+        code_lang: None,
+    }
 }
 
 pub(crate) fn format_codeblocks<'a>(

@@ -1,7 +1,14 @@
-use std::{fs, path::Path};
+use std::{
+    cell::RefCell,
+    fs,
+    path::Path,
+    sync::{Mutex, RwLock},
+};
 
 use handlebars::Handlebars;
 use lazy_static::lazy_static;
+use syntastica::Processor;
+use syntastica_parsers::LanguageSetImpl;
 
 use crate::get_markdown::visit_dir;
 
@@ -23,6 +30,15 @@ lazy_static! {
             .unwrap();
 
         handlebars
+    };
+}
+
+lazy_static! {
+    pub static ref SYNTAX_PROCESSER: Mutex<Processor<'static, LanguageSetImpl>> = {
+        let language_set: &'static LanguageSetImpl = Box::leak(Box::new(LanguageSetImpl::new()));
+        let processor = Processor::new(language_set);
+
+        processor.into()
     };
 }
 
