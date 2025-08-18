@@ -9,14 +9,26 @@ tags:
 
 I'm making my own blog system, which allows me to write my posts in [Obsidian](https://obsidian.md) and then it transforms them into html documents. I am writing it is [Rust](https://www.rust-lang.org/), the best language of all time. Currently its barely functional and missing a lot of basic features like serving the posts, here are some features im planning on adding:
 
-- [ ] A theme to my website, making it look better than just html
+## Urgent
+
+- [x] fix huge performance regression with a lot of codeblocks
+
+## Shiny
+
+- [ ] replace handlebars with tera, and improve the templating
+  - [ ] add helper functions
+- [ ] improve error handling
+  - [ ] add warning for invalid posts, and languages without tree-sitter parsers
+- [?] A theme to my website, making it look better than just html
 - [ ] Adding a sql database, pushing new posts and only parsing new ones
 - [x] Little "mini avatars", which can show different expressions
 - [ ] A server where it uploads to something like cloudflare pages so people can view my site.
 - [ ] A searching system and tagging system, so people can find posts based on tags.
 - [ ] Live reloading the websites html, whenever changes happen
 - [ ] Add a way to generate a new post easily, and admin options when inside the website.
-- [ ] Use a better font, like [Iosevka](https://github.com/be5invis/Iosevka)
+- [x] Use a better font, like [Iosevka](https://github.com/be5invis/Iosevka)
+- [ ] add a config file, so other people can use easily.
+- [ ] improve how i add modifications as the current implementation is quite bad
 
 This list will grow over time, but i currently just implemented syntax highlighting using the crate [syntastica](https://crates.io/crates/syntastica) which allows you to easily parse and render code using [tree sitter](https://tree-sitter.github.io/tree-sitter/). to do this i needed to decrypt the inner working of [pulldown_cmark](https://crates.io/crates/pulldown_cmark), which converts markdown to html, and does the bulk of the work.
 

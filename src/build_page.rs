@@ -1,0 +1,150 @@
+use std::{
+    fs,
+    path::{Path, PathBuf},
+};
+
+use color_eyre::eyre::{Ok, Result};
+use pulldown_cmark::{Options, Parser};
+use serde::{Deserialize, Serialize};
+
+use crate::{
+    HANDLEBARS, TL_PROCESSOR, build_page,
+    pullmark_parsers::{format_blockquotes, highlight_codeblocks},
+    util::{get_blog_paths, visit_dir},
+};
+
+#[derive(Debug, Serialize)]
+pub(crate) struct Blog {
+    pub id: u32,
+    pub metadata: BlogMetadata,
+    pub contents: String,
+}
+impl Blog {
+    pub(crate) fn to_blog_html(&self) -> Result<String> {
+        let rendered_string = HANDLEBARS.render("blog", self)?;
+
+        Ok(rendered_string)
+    }
+}
+
+#[derive(Serialize, Deserialize, Debug)]
+pub(crate) struct BlogMetadata {
+    pub date: String,
+    pub title: String,
+    pub published: bool,
+    pub tags: Vec<String>,
+}
+
+/// A struct containing all currently exisiting blogs & tags
+#[derive(Default, Debug)]
+pub(crate) struct BlogList {
+    pub blogs: Vec<Blog>,
+    pub existing_tags: Vec<String>,
+}
+
+pub(crate) fn build_blogs() -> color_eyre::eyre::Result<()> {
+    let blogs: build_page::BlogList = build_page::get_blogs()?;
+
+    // Replace silent error swallowing
+    if Path::new("./output").exists() {
+        fs::remove_dir_all("./output")?;
+    } else {
+        fs::create_dir_all("./output/posts")?;
+    }
+    // make output dirs
+    fs::create_dir_all("./output/posts")?;
+    fs::create_dir_all("./output/images")?;
+
+    // Output all blogs.
+    for blog in blogs.blogs {
+        if !blog.metadata.published {
+            continue;
+        }
+
+        println!("Rendering Blog {}: {}", blog.id, blog.metadata.title);
+
+        let blog_html = blog.to_blog_html()?;
+
+        fs::write(format!("./output/posts/{}.html", blog.id), blog_html)?;
+    }
+    // Copy over files
+    fs::copy(
+        "./assets/fonts/Iosevka-Regular.ttf",
+        "./output/Iosevka-Regular.ttf",
+    )?;
+
+    let images = visit_dir(Path::new("./assets/images"))?;
+    for image_path in images {
+        let file_name = image_path.file_name().unwrap();
+        fs::copy(
+            &image_path,
+            format!("./output/images/{}", file_name.to_str().unwrap()),
+        )?;
+    }
+
+    Ok(())
+}
+
+pub fn get_blogs() -> Result<BlogList> {
+    let mut blog_list = BlogList::default();
+    let mut id: u32 = 0;
+
+    let mut pullmark_options = Options::empty();
+    pullmark_options.insert(Options::ENABLE_WIKILINKS);
+    pullmark_options.insert(Options::ENABLE_STRIKETHROUGH);
+    pullmark_options.insert(Options::ENABLE_YAML_STYLE_METADATA_BLOCKS);
+    pullmark_options.insert(Options::ENABLE_TASKLISTS);
+
+    let blog_paths = get_blog_paths()?;
+
+    for blog_path in blog_paths {
+        let blog_bytes = fs::read(&blog_path)?;
+        let blog_contents = str::from_utf8(&blog_bytes)?;
+
+        // Generate HTML
+        let html_output = TL_PROCESSOR.with_borrow_mut(|processer| {
+            let parser = Parser::new_ext(&blog_contents, pullmark_options);
+            let parser = highlight_codeblocks(parser, processer);
+            let parser = format_blockquotes(parser);
+
+            let mut html_output = String::new();
+            pulldown_cmark::html::push_html(&mut html_output, parser);
+
+            html_output
+        });
+
+        // get metadata options
+        let blog_metadata_string = match blog_contents.split("---").nth(1) {
+            Some(blog_metadata) => blog_metadata,
+            None => {
+                return Err(color_eyre::eyre::eyre!(
+                    "You didnt include metadata for file: {}",
+                    blog_path.to_str().unwrap()
+                ));
+            }
+        };
+
+        let blog_metadata: BlogMetadata = serde_yaml::from_str(blog_metadata_string)?;
+
+        // Find better way not using clone
+        blog_list
+            .existing_tags
+            .append(&mut blog_metadata.tags.clone());
+        blog_list.blogs.push(Blog {
+            id,
+            metadata: blog_metadata,
+            contents: html_output,
+        });
+
+        id += 1;
+    }
+
+    blog_list
+        .existing_tags
+        .sort_by(|a, b| a.to_ascii_lowercase().cmp(&b.to_ascii_lowercase()));
+    blog_list
+        .existing_tags
+        .dedup_by(|a, b| a.eq_ignore_ascii_case(b));
+
+    Ok(blog_list)
+}

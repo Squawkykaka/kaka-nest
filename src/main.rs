@@ -1,14 +1,16 @@
 use std::{fs, path::Path};
 
+use clap::{Parser, Subcommand};
 use handlebars::Handlebars;
 use lazy_static::lazy_static;
 use syntastica::Processor;
 use syntastica_parsers::LanguageSetImpl;
 
-use crate::get_markdown::visit_dir;
+use crate::{build_page::build_blogs, util::visit_dir};
 
-mod get_markdown;
+mod build_page;
 mod pullmark_parsers;
+mod util;
 
 lazy_static! {
     pub static ref HANDLEBARS: Handlebars<'static> = {
@@ -35,46 +37,33 @@ thread_local! {
         std::cell::RefCell::new(Processor::new(*LEAKED_LANGSET));
 }
 
+#[derive(Parser, Debug)]
+struct Cli {
+    #[arg(short, long)]
+    verbose: bool,
+
+    #[command(subcommand)]
+    command: Option<Commands>,
+}
+
+#[derive(Subcommand, Clone, Debug)]
+enum Commands {
+    Build,
+}
+
 fn main() -> color_eyre::eyre::Result<()> {
     color_eyre::install()?;
 
-    let blogs: get_markdown::BlogList = get_markdown::get_blogs()?;
+    let args = Cli::parse();
 
-    // Replace silent error swallowing
-    if Path::new("./output").exists() {
-        fs::remove_dir_all("./output")?;
-    } else {
-        fs::create_dir_all("./output/posts")?;
-    }
-    // make output dirs
-    fs::create_dir_all("./output/posts")?;
-    fs::create_dir_all("./output/images")?;
+    match args.command.unwrap_or({
+        println!("No command specified, assuming \"build\"");
 
-    // Output all blogs.
-    for blog in blogs.blogs {
-        if !blog.metadata.published {
-            continue;
+        Commands::Build
+    }) {
+        Commands::Build {} => {
+            build_blogs()?;
         }
-
-        println!("Rendering Blog {}: {}", blog.id, blog.metadata.title);
-
-        let blog_html = blog.to_blog_html()?;
-
-        fs::write(format!("./output/posts/{}.html", blog.id), blog_html)?;
-    }
-    // Copy over files
-    fs::copy(
-        "./assets/fonts/Iosevka-Regular.ttf",
-        "./output/Iosevka-Regular.ttf",
-    )?;
-
-    let images = visit_dir(Path::new("./assets/images"))?;
-    for image_path in images {
-        let file_name = image_path.file_name().unwrap();
-        fs::copy(
-            &image_path,
-            format!("./output/images/{}", file_name.to_str().unwrap()),
-        )?;
     }
 
     Ok(())

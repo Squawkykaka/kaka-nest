@@ -23,9 +23,29 @@
     </div>
 
     <!-- Content -->
-    <div>{{{ contents }}}</div>
+    <div class="website-contents">
+      <div
+        style="
+          width: 70%;
+          align-items: center;
+          display: flex;
+          flex-direction: column;
+        "
+      >
+        <h1 style="width: fit-content">{{ metadata.title }}</h1>
+        <p style="width: fit-content">Date: {{ metadata.date }}</p>
+      </div>
+
+      <div class="main-blog">{{{ contents }}}</div>
+    </div>
   </body>
   <style>
+    body {
+      background-color: #181a1f;
+      color: #abb2bf;
+      align-items: center;
+    }
+
     @font-face {
       font-family: "Iosevka";
       src: url(../Iosevka-Regular.ttf), format("truetype");
@@ -59,14 +79,20 @@
       color: white;
     }
 
+    .codeblock-wrapper {
+      position: relative;
+      width: 100%;
+    }
+
     .codeblock {
       background-color: #31353f;
-      width: fit-content;
+      width: 100%;
       padding: 10px;
-      /* padding-top: 20px; */
-      position: relative;
+      padding-top: 30px; /* Make room for the label */
       border: 4px solid #393f4a;
       border-radius: 10px;
+      overflow-x: auto; /* Only horizontal scroll */
+      overflow-y: hidden;
 
       font-size: 120%;
     }
@@ -75,13 +101,25 @@
       background-color: #393f4a;
       width: fit-content;
       padding: 4px 8px;
-      border-radius: 0 0px 0 5px;
+      border-radius: 0 6px 0 5px; /* Match the codeblock border radius */
       margin: 0;
       position: absolute;
-      top: 0;
-      right: 0;
+      top: 4px; /* Account for the border */
+      right: -24px; /* Account for the border */
       font-size: 20px;
       color: #ffffff;
+      z-index: 1; /* Ensure it stays on top */
+    }
+
+    .main-blog {
+      width: 70%;
+    }
+
+    .website-contents {
+      display: flex;
+      flex-direction: column;
+      /* justify-content: center; */
+      align-items: center;
     }
   </style>
 </html>
