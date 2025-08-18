@@ -1,4 +1,4 @@
-use std::{fs, path::Path, sync::Mutex};
+use std::{fs, path::Path};
 
 use handlebars::Handlebars;
 use lazy_static::lazy_static;
@@ -77,8 +77,5 @@ fn main() -> color_eyre::eyre::Result<()> {
         )?;
     }
 
-    // Output all tags
-
-    // dbg!(blogs);
     Ok(())
 }

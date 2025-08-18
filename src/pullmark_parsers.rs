@@ -2,8 +2,8 @@ use std::str::FromStr;
 
 use pulldown_cmark::{CodeBlockKind, CowStr, Event, Parser, Tag, TagEnd};
 use serde::Serialize;
-use syntastica::renderer::HtmlRenderer;
-use syntastica_parsers::Lang;
+use syntastica::{Processor, renderer::HtmlRenderer};
+use syntastica_parsers::{Lang, LanguageSetImpl};
 
 use crate::{HANDLEBARS, TL_PROCESSOR};
 
@@ -27,12 +27,20 @@ struct BlockQuote<'a> {
 }
 
 /// Gets every codeblock in a pullmark parser and adds syntax highlighting to the html
-pub(crate) fn highlight_codeblocks(parser: Parser<'_>) -> impl Iterator<Item = Event<'_>> {
+// ...existing code...
+pub(crate) fn highlight_codeblocks<'a, I>(
+    parser: I,
+    processer: &'a mut Processor<'static, LanguageSetImpl>,
+) -> impl Iterator<Item = Event<'a>> + 'a
+where
+    I: Iterator<Item = Event<'a>> + 'a,
+{
     struct HighlightCodeblocks<'a, I: Iterator<Item = Event<'a>>> {
         inner: I,
         in_codeblock: bool,
         code_lang: Option<String>,
         code_buffer: String,
+        processer: &'a mut Processor<'static, LanguageSetImpl>,
     }
 
     impl<'a, I: Iterator<Item = Event<'a>>> Iterator for HighlightCodeblocks<'a, I> {
@@ -45,11 +53,9 @@ pub(crate) fn highlight_codeblocks(parser: Parser<'_>) -> impl Iterator<Item = E
                         self.in_codeblock = true;
                         self.code_lang = Some(lang.to_string());
                         self.code_buffer.clear();
-
                         continue;
                     }
                     Event::Text(text) if self.in_codeblock => {
-                        // Collect code lines
                         self.code_buffer.push_str(&text);
                         continue;
                     }
@@ -58,47 +64,41 @@ pub(crate) fn highlight_codeblocks(parser: Parser<'_>) -> impl Iterator<Item = E
 
                         let highlighted_code = if let Some(lang) = self.code_lang.as_deref() {
                             if let Ok(syntax) = Lang::from_str(lang) {
-                                let highlighted_code =
-                                    match TL_PROCESSOR.with_borrow_mut(|processer| {
-                                        processer.process(&self.code_buffer, syntax).ok()
-                                    }) {
+                                let processed =
+                                    match self.processer.process(&self.code_buffer, syntax).ok() {
                                         Some(o) => o,
                                         None => {
-                                            println!("Highlighting code failed");
+                                            eprintln!("Highlighting code failed");
                                             std::process::exit(0);
                                         }
                                     };
 
-                                let highlighted_code = syntastica::render(
-                                    &highlighted_code,
+                                let highlighted = syntastica::render(
+                                    &processed,
                                     &mut HtmlRenderer,
                                     syntastica_themes::one::dark(),
                                 );
 
-                                let rendered_html = HANDLEBARS
+                                // If Handlebar render is expensive, consider a simple format! here instead.
+                                HANDLEBARS
                                     .render(
                                         "codeblock",
                                         &CodeBlock {
                                             lang: lang.to_string(),
-                                            contents: highlighted_code,
+                                            contents: highlighted,
                                         },
                                     )
-                                    .expect("Failed to render html codeblock");
-
-                                rendered_html
+                                    .expect("Failed to render html codeblock")
                             } else {
-                                // If language parsing fails, just escape the code
                                 html_escape::encode_text(&self.code_buffer).to_string()
                             }
                         } else {
-                            // If no language is specified, just escape the code
                             html_escape::encode_text(&self.code_buffer).to_string()
                         };
 
                         return Some(Event::Html(highlighted_code.into()));
                     }
-
-                    _ => return Some(event),
+                    other => return Some(other),
                 }
             }
             None
@@ -108,11 +108,13 @@ pub(crate) fn highlight_codeblocks(parser: Parser<'_>) -> impl Iterator<Item = E
     HighlightCodeblocks {
         inner: parser,
         in_codeblock: false,
-        code_buffer: String::with_capacity(1024 * 4),
         code_lang: None,
+        code_buffer: String::with_capacity(1024 * 4),
+        processer,
     }
 }
 
+// ...existing code...
 /// Processes blockquotes with the format:
 ///
 /// ```md
@@ -178,13 +180,10 @@ pub(crate) fn format_blockquotes<'a>(
         }
     }
 
-    let mut code_buffer = String::new();
-    code_buffer.reserve(1024 * 4);
-
     FormatBlockquotes {
         inner: parser,
         in_blockquote: false,
-        blockquote_buffer: code_buffer,
+        blockquote_buffer: String::with_capacity(4 * 1024),
     }
 }
 

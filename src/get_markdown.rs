@@ -8,7 +8,7 @@ use pulldown_cmark::{Options, Parser};
 use serde::{Deserialize, Serialize};
 
 use crate::{
-    HANDLEBARS,
+    HANDLEBARS, TL_PROCESSOR,
     pullmark_parsers::{format_blockquotes, highlight_codeblocks},
 };
 
@@ -58,12 +58,16 @@ pub fn get_blogs() -> Result<BlogList> {
         let blog_contents = str::from_utf8(&blog_bytes)?;
 
         // Generate HTML
-        let parser = Parser::new_ext(&blog_contents, pullmark_options);
-        let parser = highlight_codeblocks(parser);
-        let parser = format_blockquotes(parser);
+        let html_output = TL_PROCESSOR.with_borrow_mut(|processer| {
+            let parser = Parser::new_ext(&blog_contents, pullmark_options);
+            let parser = highlight_codeblocks(parser, processer);
+            let parser = format_blockquotes(parser);
 
-        let mut html_output = String::new();
-        pulldown_cmark::html::push_html(&mut html_output, parser);
+            let mut html_output = String::new();
+            pulldown_cmark::html::push_html(&mut html_output, parser);
+
+            html_output
+        });
 
         // get metadata options
         let blog_metadata_string = match blog_contents.split("---").nth(1) {
