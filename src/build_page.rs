@@ -89,12 +89,6 @@ pub fn get_blogs() -> Result<BlogList> {
     let mut blog_list = BlogList::default();
     let mut id: u32 = 0;
 
-    let mut pullmark_options = Options::empty();
-    pullmark_options.insert(Options::ENABLE_WIKILINKS);
-    pullmark_options.insert(Options::ENABLE_STRIKETHROUGH);
-    pullmark_options.insert(Options::ENABLE_YAML_STYLE_METADATA_BLOCKS);
-    pullmark_options.insert(Options::ENABLE_TASKLISTS);
-
     let blog_paths = get_blog_paths()?;
 
     for blog_path in blog_paths {
@@ -102,16 +96,7 @@ pub fn get_blogs() -> Result<BlogList> {
         let blog_contents = str::from_utf8(&blog_bytes)?;
 
         // Generate HTML
-        let html_output = TL_PROCESSOR.with_borrow_mut(|processer| {
-            let parser = Parser::new_ext(&blog_contents, pullmark_options);
-            let parser = highlight_codeblocks(parser, processer);
-            let parser = format_blockquotes(parser);
-
-            let mut html_output = String::new();
-            pulldown_cmark::html::push_html(&mut html_output, parser);
-
-            html_output
-        });
+        let html_output = render_html_page_from_markdown(blog_contents);
 
         // get metadata options
         let blog_metadata_string = match blog_contents.split("---").nth(1) {
@@ -147,4 +132,25 @@ pub fn get_blogs() -> Result<BlogList> {
         .dedup_by(|a, b| a.eq_ignore_ascii_case(b));
 
     Ok(blog_list)
+}
+
+fn render_html_page_from_markdown(input: &str) -> String {
+    let mut pullmark_options = Options::empty();
+    pullmark_options.insert(Options::ENABLE_WIKILINKS);
+    pullmark_options.insert(Options::ENABLE_STRIKETHROUGH);
+    pullmark_options.insert(Options::ENABLE_YAML_STYLE_METADATA_BLOCKS);
+    pullmark_options.insert(Options::ENABLE_TASKLISTS);
+
+    let html_output = TL_PROCESSOR.with_borrow_mut(|processer| {
+        let parser = Parser::new_ext(input, pullmark_options);
+        let parser = highlight_codeblocks(parser, processer);
+        let parser = format_blockquotes(parser);
+
+        let mut html_output = String::new();
+        pulldown_cmark::html::push_html(&mut html_output, parser);
+
+        html_output
+    });
+
+    html_output
 }

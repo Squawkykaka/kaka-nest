@@ -1,5 +1,6 @@
 use std::str::FromStr;
 
+use handlebars::RenderError;
 use pulldown_cmark::{CodeBlockKind, CowStr, Event, Parser, Tag, TagEnd};
 use serde::Serialize;
 use syntastica::{Processor, renderer::HtmlRenderer};
@@ -80,20 +81,12 @@ where
                                 );
 
                                 // If Handlebar render is expensive, consider a simple format! here instead.
-                                HANDLEBARS
-                                    .render(
-                                        "codeblock",
-                                        &CodeBlock {
-                                            lang: lang.to_string(),
-                                            contents: highlighted,
-                                        },
-                                    )
-                                    .expect("Failed to render html codeblock")
+                                format_codeblock_html(&highlighted, Some(lang)).unwrap()
                             } else {
-                                html_escape::encode_text(&self.code_buffer).to_string()
+                                format_codeblock_html(&self.code_buffer.to_string(), None).unwrap()
                             }
                         } else {
-                            html_escape::encode_text(&self.code_buffer).to_string()
+                            format_codeblock_html(&self.code_buffer, None).unwrap()
                         };
 
                         return Some(Event::Html(highlighted_code.into()));
@@ -187,7 +180,7 @@ pub(crate) fn format_blockquotes<'a>(
     }
 }
 
-fn parse_marker(input: &str) -> Option<(String, String)> {
+fn parse_marker(input: &String) -> Option<(String, String)> {
     let mut lines = input.lines();
 
     // Expect: line 1 == "[", line 2 starts with "!", line 3 == "]"
@@ -210,15 +203,90 @@ fn parse_marker(input: &str) -> Option<(String, String)> {
 
     Some((marker, value))
 }
+
+fn format_codeblock_html(input: &str, lang: Option<&str>) -> Result<String, RenderError> {
+    HANDLEBARS.render(
+        "codeblock",
+        &CodeBlock {
+            lang: lang.unwrap_or(" ").to_string(),
+            contents: input.to_string(),
+        },
+    )
+}
 #[cfg(test)]
 mod tests {
-    use crate::pullmark_parsers::parse_marker;
+    use pulldown_cmark::{Options, Parser};
+
+    use crate::{
+        TL_PROCESSOR,
+        pullmark_parsers::{format_codeblock_html, highlight_codeblocks, parse_marker},
+    };
 
     #[test]
     fn test_parser_marker() {
         assert_eq!(
-            parse_marker("[\n!test\n]\nThis is super neat\n"),
+            parse_marker(&"[\n!test\n]\nThis is super neat\n".to_string()),
             Some(("test".to_string(), "This is super neat".to_string()))
         );
+    }
+
+    #[test]
+    fn test_valid_codeblock() {
+        let test_input = "
+```rust
+fn bob() {
+    println!(\"Hello Wolrd\");
+}
+```
+        ";
+        let test_output = "<div class=\"codeblock-wrapper\">\n  <p class=\"lang-label\">rust</p>\n\n  <div class=\"codeblock\">\n    <code style=\"display: block\">\n      <pre><span style=\"color:rgb(198,120,221);\">fn</span>&nbsp;<span style=\"color:rgb(97,175,239);\">bob</span><span style=\"color:rgb(132,139,152);\">(</span><span style=\"color:rgb(132,139,152);\">)</span>&nbsp;<span style=\"color:rgb(132,139,152);\">{</span><br>&nbsp;&nbsp;&nbsp;&nbsp;<span style=\"color:rgb(86,182,194);\">println</span><span style=\"color:rgb(86,182,194);\">!</span><span style=\"color:rgb(132,139,152);\">(</span><span style=\"color:rgb(152,195,121);\">\"Hello&nbsp;Wolrd\"</span><span style=\"color:rgb(132,139,152);\">)</span><span style=\"color:rgb(132,139,152);\">;</span><br><span style=\"color:rgb(132,139,152);\">}</span><br></pre>\n    </code>\n  </div>\n</div>\n";
+
+        let mut pullmark_options = Options::empty();
+        pullmark_options.insert(Options::ENABLE_WIKILINKS);
+        pullmark_options.insert(Options::ENABLE_STRIKETHROUGH);
+        pullmark_options.insert(Options::ENABLE_YAML_STYLE_METADATA_BLOCKS);
+        pullmark_options.insert(Options::ENABLE_TASKLISTS);
+
+        let html_output = TL_PROCESSOR.with_borrow_mut(|processer| {
+            let parser = Parser::new_ext(test_input, pullmark_options);
+            let parser = highlight_codeblocks(parser, processer);
+
+            let mut html_output = String::new();
+            pulldown_cmark::html::push_html(&mut html_output, parser);
+
+            html_output
+        });
+
+        assert_eq!(html_output, test_output)
+    }
+
+    #[test]
+    fn test_no_specified_lang_codeblock() {
+        let test_input = "
+```
+fn bob() {
+    println!(\"Hello Wolrd\");
+}
+```
+        ";
+        let test_output = "<div class=\"codeblock-wrapper\">\n  <p class=\"lang-label\"></p>\n\n  <div class=\"codeblock\">\n    <code style=\"display: block\">\n      <pre>fn bob() {\n    println!(\"Hello Wolrd\");\n}\n</pre>\n    </code>\n  </div>\n</div>\n";
+
+        let mut pullmark_options = Options::empty();
+        pullmark_options.insert(Options::ENABLE_WIKILINKS);
+        pullmark_options.insert(Options::ENABLE_STRIKETHROUGH);
+        pullmark_options.insert(Options::ENABLE_YAML_STYLE_METADATA_BLOCKS);
+        pullmark_options.insert(Options::ENABLE_TASKLISTS);
+
+        let html_output = TL_PROCESSOR.with_borrow_mut(|processer| {
+            let parser = Parser::new_ext(test_input, pullmark_options);
+            let parser = highlight_codeblocks(parser, processer);
+
+            let mut html_output = String::new();
+            pulldown_cmark::html::push_html(&mut html_output, parser);
+
+            html_output
+        });
+
+        assert_eq!(html_output, test_output)
     }
 }
