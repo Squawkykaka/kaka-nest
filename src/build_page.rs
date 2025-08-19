@@ -63,7 +63,7 @@ pub(crate) fn build_blogs() -> color_eyre::eyre::Result<()> {
             continue;
         }
 
-        info!("Converting blog {} to HTML", blog.id);
+        info!("Converting blog {}", blog.id);
         let blog_html = blog.to_blog_html()?;
 
         fs::write(format!("./output/posts/{}.html", blog.id), blog_html)?;
@@ -115,7 +115,7 @@ pub fn get_blogs() -> Result<BlogList> {
 
         // Find better way not using clone
 
-        info!("Finished parsing blog {}", id);
+        debug!("Finished parsing blog {}", id);
         blog_list.blogs.push(Blog {
             id,
             metadata: blog_metadata,
@@ -135,7 +135,7 @@ pub fn get_blogs() -> Result<BlogList> {
     Ok(blog_list)
 }
 
-fn render_html_page_from_markdown(input: &str) -> String {
+pub fn render_html_page_from_markdown(input: &str) -> String {
     let mut pullmark_options = Options::empty();
     pullmark_options.insert(Options::ENABLE_WIKILINKS);
     pullmark_options.insert(Options::ENABLE_STRIKETHROUGH);

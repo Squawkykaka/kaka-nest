@@ -10,6 +10,8 @@ tags:
 
 I'm making my own blog system, which allows me to write my posts in [Obsidian](https://obsidian.md) and then it transforms them into html documents. I am writing it is [Rust](https://www.rust-lang.org/), the best language of all time. Currently its barely functional and missing a lot of basic features like serving the posts, here are some features im planning on adding:
 
+---
+
 ## Urgent
 
 - [x] fix huge performance regression with a lot of codeblocks
