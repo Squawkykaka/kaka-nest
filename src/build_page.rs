@@ -4,6 +4,7 @@ use std::{
 };
 
 use color_eyre::eyre::{Ok, Result};
+use log::{debug, info};
 use pulldown_cmark::{Options, Parser};
 use serde::{Deserialize, Serialize};
 
@@ -32,7 +33,8 @@ pub(crate) struct BlogMetadata {
     pub date: String,
     pub title: String,
     pub published: bool,
-    pub tags: Vec<String>,
+    pub tags: Option<Vec<String>>,
+    pub read_mins: u32,
 }
 
 /// A struct containing all currently exisiting blogs & tags
@@ -61,8 +63,7 @@ pub(crate) fn build_blogs() -> color_eyre::eyre::Result<()> {
             continue;
         }
 
-        println!("Rendering Blog {}: {}", blog.id, blog.metadata.title);
-
+        info!("Converting blog {} to HTML", blog.id);
         let blog_html = blog.to_blog_html()?;
 
         fs::write(format!("./output/posts/{}.html", blog.id), blog_html)?;
@@ -92,6 +93,7 @@ pub fn get_blogs() -> Result<BlogList> {
     let blog_paths = get_blog_paths()?;
 
     for blog_path in blog_paths {
+        debug!("Reading blog {}", id);
         let blog_bytes = fs::read(&blog_path)?;
         let blog_contents = str::from_utf8(&blog_bytes)?;
 
@@ -112,9 +114,8 @@ pub fn get_blogs() -> Result<BlogList> {
         let blog_metadata: BlogMetadata = serde_yaml::from_str(blog_metadata_string)?;
 
         // Find better way not using clone
-        blog_list
-            .existing_tags
-            .append(&mut blog_metadata.tags.clone());
+
+        info!("Finished parsing blog {}", id);
         blog_list.blogs.push(Blog {
             id,
             metadata: blog_metadata,

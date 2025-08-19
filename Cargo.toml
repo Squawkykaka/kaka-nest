@@ -19,6 +19,8 @@ serde = { version = "1.0.219", features = ["derive"] }
 serde_yaml = "0.9.34"
 lazy_static = "1.5.0"
 clap = { version = "4.5.45", features = ["derive"] }
+log = "0.4.27"
+env_logger = "0.11.8"
 
 [profile.release]
 debug = true

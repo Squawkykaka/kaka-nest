@@ -3,6 +3,7 @@ use std::{fs, path::Path};
 use clap::{Parser, Subcommand};
 use handlebars::Handlebars;
 use lazy_static::lazy_static;
+use log::info;
 use syntastica::Processor;
 use syntastica_parsers::LanguageSetImpl;
 
@@ -52,12 +53,13 @@ enum Commands {
 }
 
 fn main() -> color_eyre::eyre::Result<()> {
+    env_logger::init();
     color_eyre::install()?;
 
     let args = Cli::parse();
 
     match args.command.unwrap_or({
-        println!("No command specified, assuming \"build\"");
+        info!("No command specified, assuming \"build\"");
 
         Commands::Build
     }) {

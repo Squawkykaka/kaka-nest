@@ -13,15 +13,6 @@
     <title>{{ metadata.title }}</title>
   </head>
   <body>
-    <div>
-      <p>Tags:</p>
-      <ul>
-        {{#each metadata.tags}}
-        <li>{{this}}</li>
-        {{/each}}
-      </ul>
-    </div>
-
     <!-- Content -->
     <div class="website-contents">
       <div
@@ -33,7 +24,31 @@
         "
       >
         <h1 style="width: fit-content">{{ metadata.title }}</h1>
-        <p style="width: fit-content">Date: {{ metadata.date }}</p>
+
+        <div
+          style="
+            display: flex;
+            justify-content: center;
+            gap: 5px;
+            align-items: center;
+          "
+        >
+          <span>{{ metadata.date }}</span>
+          <span style="font-size: larger">·</span>
+          <span>
+            <img
+              src="../images/clock-nine.svg"
+              style="width: 16px; height: 16px; vertical-align: middle"
+            />
+            {{ metadata.read_mins }} mins
+          </span>
+          <span style="font-size: larger">·</span>
+          <span>
+            {{#each metadata.tags}}
+            <a href="../tags/{{ this }}">{{ this }}</a>{{#unless @last}}
+            {{/unless}} {{/each}}
+          </span>
+        </div>
       </div>
 
       <div class="main-blog">{{{ contents }}}</div>
@@ -70,8 +85,7 @@
     }
 
     .blockquote {
-      background-color: black;
-      border: 2px solid brown;
+      background-color: #5c6370;
       border-radius: 20px;
       width: fit-content;
       display: flex;

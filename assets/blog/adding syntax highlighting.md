@@ -2,6 +2,7 @@
 date: 16/08/2025
 published: true
 title: Adding syntax highlighting to my blog software
+read_mins: 5
 tags:
   - "#rust"
   - "#blog-software"
@@ -85,3 +86,5 @@ let parser = parser.map(move |event| {
 ```
 
 The formatting code itself? that is an abomination, and i know theres probably a much better way of achieving it. **BUT THATS FOR FUTURE ME** so ill deal with that later™
+
+Clock SVG by Dazzle UI
