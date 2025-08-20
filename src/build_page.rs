@@ -1,7 +1,7 @@
 use std::{
     collections::{HashMap, HashSet},
     fs,
-    path::Path,
+    path::{Path, PathBuf},
 };
 
 use color_eyre::eyre::Result;
@@ -18,7 +18,8 @@ use crate::{
 
 #[derive(Debug, Serialize)]
 pub(crate) struct Blog {
-    pub id: u32,
+    pub title: String,
+    pub slug: String,
     pub metadata: BlogMetadata,
     pub contents: String,
 }
@@ -33,7 +34,6 @@ impl Blog {
 #[derive(Serialize, Deserialize, Debug)]
 pub(crate) struct BlogMetadata {
     pub date: String,
-    pub title: String,
     pub published: bool,
     pub tags: Option<Vec<String>>,
     pub read_mins: u32,
@@ -43,7 +43,7 @@ pub(crate) struct BlogMetadata {
 #[derive(Default, Debug)]
 pub(crate) struct BlogList {
     pub blogs: Vec<Blog>,
-    pub tags: HashMap<String, HashSet<u32>>,
+    pub tags: HashMap<String, HashSet<String>>,
 }
 
 pub(crate) fn create_blogs_on_system() -> color_eyre::eyre::Result<()> {
@@ -66,10 +66,10 @@ pub(crate) fn create_blogs_on_system() -> color_eyre::eyre::Result<()> {
             continue;
         }
 
-        info!("Converting blog {} to html", blog.id);
+        info!("Converting blog {} to html", blog.title);
         let blog_html = blog.to_blog_html()?;
 
-        fs::write(format!("./output/posts/{}.html", blog.id), blog_html)?;
+        fs::write(format!("./output/posts/{}.html", blog.slug), blog_html)?;
     }
 
     output_tags_to_fs(&blogs)?;
@@ -97,7 +97,7 @@ fn output_tags_to_fs(blogs: &BlogList) -> Result<()> {
         let posts: Vec<_> = blogs
             .blogs
             .iter()
-            .filter(|blog| blogs_with.contains(&blog.id))
+            .filter(|blog| blogs_with.contains(&blog.slug))
             .collect();
 
         let json_tag = json!({
@@ -126,25 +126,22 @@ pub fn get_blogs() -> Result<BlogList> {
 
     let blog_paths = get_blog_paths()?;
 
-    for (id, blog_path) in blog_paths.into_iter().enumerate() {
-        debug!("Reading blog {}", id);
-        let blog_bytes = fs::read(&blog_path)?;
-        let blog_contents = std::str::from_utf8(&blog_bytes)?;
-
-        render_blog(blog_contents, &mut blog_list, id as u32)?;
-
-        debug!("Finished parsing blog {}", id);
+    for blog_path in blog_paths {
+        render_blog(blog_path, &mut blog_list)?;
     }
 
     Ok(blog_list)
 }
 
-fn render_blog(input: &str, blog_list: &mut BlogList, id: u32) -> Result<()> {
+fn render_blog(blog_path: PathBuf, blog_list: &mut BlogList) -> Result<()> {
+    let blog_bytes = fs::read(&blog_path)?;
+    let blog_contents = std::str::from_utf8(&blog_bytes)?;
+
     // Generate HTML
-    let html_output = render_html_page_from_markdown(input);
+    let html_output = render_html_page_from_markdown(&blog_contents);
 
     // get metadata options
-    let blog_metadata_string = match input.split("---").nth(1) {
+    let blog_metadata_string = match blog_contents.split("---").nth(1) {
         Some(blog_metadata) => blog_metadata,
         None => return Err(color_eyre::eyre::eyre!("Didnt include metadata for file")),
     };
@@ -160,20 +157,32 @@ fn render_blog(input: &str, blog_list: &mut BlogList, id: u32) -> Result<()> {
         }
     }
 
+    // TODO Chaneg to maybe add a date suffix maybe from file creation date?
+    let blog_title = blog_path
+        .file_name()
+        .expect("Patth returned is ..")
+        .to_string_lossy()
+        .strip_suffix(".md")
+        .expect("Path should have .md extension when making blog title")
+        .to_string();
+    let blog_slug = blog_title.replace(" ", "-").to_ascii_lowercase();
+
     let blog = Blog {
-        id,
+        title: blog_title.clone(),
+        slug: blog_slug.clone(),
         metadata: blog_metadata,
         contents: html_output,
     };
 
     // Insert blog into list
+    // FIXME change to not clone each time, probably using &str
     if let Some(tags) = &blog.metadata.tags {
         for tag in tags {
             blog_list
                 .tags
                 .entry(tag.to_string())
                 .or_default()
-                .insert(id);
+                .insert(blog_slug.clone());
         }
     }
 

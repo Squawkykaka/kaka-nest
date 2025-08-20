@@ -9,17 +9,15 @@
     flake-utils.url = "github:numtide/flake-utils";
   };
 
-  outputs =
-    {
-      self,
-      nixpkgs,
-      crane,
-      flake-utils,
-      ...
-    }:
+  outputs = {
+    self,
+    nixpkgs,
+    crane,
+    flake-utils,
+    ...
+  }:
     flake-utils.lib.eachDefaultSystem (
-      system:
-      let
+      system: let
         pkgs = nixpkgs.legacyPackages.${system};
 
         craneLib = crane.mkLib pkgs;
@@ -35,8 +33,7 @@
             cargoArtifacts = craneLib.buildDepsOnly commonArgs;
           }
         );
-      in
-      {
+      in {
         checks = {
           inherit kaka-nest;
         };
@@ -61,6 +58,7 @@
             pkgs.hyperfine
             pkgs.linuxKernel.packages.linux_zen.perf
             pkgs.gnuplot
+            pkgs.wrangler
           ];
         };
       }

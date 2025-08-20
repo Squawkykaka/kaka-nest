@@ -1,7 +1,6 @@
 ---
 date: 2025-08-16
 published: true
-title: Adding syntax highlighting to my blog software
 read_mins: 5
 tags:
   - "#rust"
