@@ -1,12 +1,14 @@
 use std::{
+    collections::{HashMap, HashSet},
     fs,
-    path::{Path, PathBuf},
+    path::Path,
 };
 
-use color_eyre::eyre::{Ok, Result};
+use color_eyre::eyre::Result;
 use log::{debug, info};
 use pulldown_cmark::{Options, Parser};
 use serde::{Deserialize, Serialize};
+use serde_json::json;
 
 use crate::{
     HANDLEBARS, TL_PROCESSOR, build_page,
@@ -41,10 +43,10 @@ pub(crate) struct BlogMetadata {
 #[derive(Default, Debug)]
 pub(crate) struct BlogList {
     pub blogs: Vec<Blog>,
-    pub existing_tags: Vec<String>,
+    pub tags: HashMap<String, HashSet<u32>>,
 }
 
-pub(crate) fn build_blogs() -> color_eyre::eyre::Result<()> {
+pub(crate) fn create_blogs_on_system() -> color_eyre::eyre::Result<()> {
     let blogs: build_page::BlogList = build_page::get_blogs()?;
 
     // Replace silent error swallowing
@@ -56,6 +58,7 @@ pub(crate) fn build_blogs() -> color_eyre::eyre::Result<()> {
     // make output dirs
     fs::create_dir_all("./output/posts")?;
     fs::create_dir_all("./output/images")?;
+    fs::create_dir_all("./output/tags")?;
 
     // Output all blogs.
     for blog in blogs.blogs {
@@ -63,11 +66,14 @@ pub(crate) fn build_blogs() -> color_eyre::eyre::Result<()> {
             continue;
         }
 
-        info!("Converting blog {}", blog.id);
+        info!("Converting blog {} to html", blog.id);
         let blog_html = blog.to_blog_html()?;
 
         fs::write(format!("./output/posts/{}.html", blog.id), blog_html)?;
     }
+
+    output_tags_to_fs(blogs.tags)?;
+
     // Copy over files
     fs::copy(
         "./assets/fonts/Iosevka-Regular.ttf",
@@ -86,56 +92,90 @@ pub(crate) fn build_blogs() -> color_eyre::eyre::Result<()> {
     Ok(())
 }
 
-pub fn get_blogs() -> Result<BlogList> {
-    let mut blog_list = BlogList::default();
-    let mut id: u32 = 0;
+fn output_tags_to_fs(tags: HashMap<String, HashSet<u32>>) -> Result<()> {
+    for (tag, blogs_with) in tags {
+        let json_tag = json!({
+            "contents": blogs_with
+        });
 
-    let blog_paths = get_blog_paths()?;
+        let contents = HANDLEBARS.render("tag_page", &json_tag)?;
 
-    for blog_path in blog_paths {
-        debug!("Reading blog {}", id);
-        let blog_bytes = fs::read(&blog_path)?;
-        let blog_contents = str::from_utf8(&blog_bytes)?;
-
-        // Generate HTML
-        let html_output = render_html_page_from_markdown(blog_contents);
-
-        // get metadata options
-        let blog_metadata_string = match blog_contents.split("---").nth(1) {
-            Some(blog_metadata) => blog_metadata,
+        let stripped_tag = match tag.strip_prefix("#") {
+            Some(tag) => tag,
             None => {
-                return Err(color_eyre::eyre::eyre!(
-                    "You didnt include metadata for file: {}",
-                    blog_path.to_str().unwrap()
-                ));
+                debug!("Tag without # prefix ({})", tag);
+                tag.as_str()
             }
         };
 
-        let blog_metadata: BlogMetadata = serde_yaml::from_str(blog_metadata_string)?;
-
-        // Find better way not using clone
-
-        debug!("Finished parsing blog {}", id);
-        blog_list.blogs.push(Blog {
-            id,
-            metadata: blog_metadata,
-            contents: html_output,
-        });
-
-        id += 1;
+        fs::write(format!("./output/tags/{}.html", stripped_tag), contents)?;
     }
 
-    blog_list
-        .existing_tags
-        .sort_by(|a, b| a.to_ascii_lowercase().cmp(&b.to_ascii_lowercase()));
-    blog_list
-        .existing_tags
-        .dedup_by(|a, b| a.eq_ignore_ascii_case(b));
+    Ok(())
+}
+
+pub fn get_blogs() -> Result<BlogList> {
+    let mut blog_list = BlogList::default();
+
+    let blog_paths = get_blog_paths()?;
+
+    for (id, blog_path) in blog_paths.into_iter().enumerate() {
+        debug!("Reading blog {}", id);
+        let blog_bytes = fs::read(&blog_path)?;
+        let blog_contents = std::str::from_utf8(&blog_bytes)?;
+
+        render_blog(blog_contents, &mut blog_list, id as u32)?;
+
+        debug!("Finished parsing blog {}", id);
+    }
 
     Ok(blog_list)
 }
 
-pub fn render_html_page_from_markdown(input: &str) -> String {
+fn render_blog(input: &str, blog_list: &mut BlogList, id: u32) -> Result<()> {
+    // Generate HTML
+    let html_output = render_html_page_from_markdown(input);
+
+    // get metadata options
+    let blog_metadata_string = match input.split("---").nth(1) {
+        Some(blog_metadata) => blog_metadata,
+        None => return Err(color_eyre::eyre::eyre!("Didnt include metadata for file")),
+    };
+
+    let mut blog_metadata: BlogMetadata = serde_yaml::from_str(blog_metadata_string)?;
+
+    // Remove '#' prefix from each tag if present
+    if let Some(tags) = &mut blog_metadata.tags {
+        for tag in tags.iter_mut() {
+            if let Some(stripped) = tag.strip_prefix('#') {
+                *tag = stripped.to_string();
+            }
+        }
+    }
+
+    let blog = Blog {
+        id,
+        metadata: blog_metadata,
+        contents: html_output,
+    };
+
+    // Insert blog into list
+    if let Some(tags) = &blog.metadata.tags {
+        for tag in tags {
+            blog_list
+                .tags
+                .entry(tag.to_string())
+                .or_default()
+                .insert(id);
+        }
+    }
+
+    blog_list.blogs.push(blog);
+
+    Ok(())
+}
+
+fn render_html_page_from_markdown(input: &str) -> String {
     let mut pullmark_options = Options::empty();
     pullmark_options.insert(Options::ENABLE_WIKILINKS);
     pullmark_options.insert(Options::ENABLE_STRIKETHROUGH);

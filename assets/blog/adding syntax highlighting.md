@@ -1,5 +1,5 @@
 ---
-date: 16/08/2025
+date: 2025-08-16
 published: true
 title: Adding syntax highlighting to my blog software
 read_mins: 5
@@ -25,6 +25,7 @@ I'm making my own blog system, which allows me to write my posts in [Obsidian](h
 - [?] A theme to my website, making it look better than just html
 - [ ] Adding a sql database, pushing new posts and only parsing new ones
 - [x] Little "mini avatars", which can show different expressions
+- [x] tags list, where you can see what posts have what tags
 - [ ] A server where it uploads to something like cloudflare pages so people can view my site.
 - [ ] A searching system and tagging system, so people can find posts based on tags.
 - [ ] Live reloading the websites html, whenever changes happen
@@ -88,5 +89,7 @@ let parser = parser.map(move |event| {
 ```
 
 The formatting code itself? that is an abomination, and i know theres probably a much better way of achieving it. **BUT THATS FOR FUTURE ME** so ill deal with that later™
+
+The next feature im planning on adding is a tag list showing what posts have what tags
 
 Clock SVG by Dazzle UI

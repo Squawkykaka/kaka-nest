@@ -1,5 +1,3 @@
-use std::{fs, path::Path};
-
 use clap::{Parser, Subcommand};
 use handlebars::Handlebars;
 use lazy_static::lazy_static;
@@ -7,7 +5,7 @@ use log::info;
 use syntastica::Processor;
 use syntastica_parsers::LanguageSetImpl;
 
-use crate::{build_page::build_blogs, util::visit_dir};
+use crate::build_page::create_blogs_on_system;
 
 mod build_page;
 mod pullmark_parsers;
@@ -17,14 +15,26 @@ lazy_static! {
     pub static ref HANDLEBARS: Handlebars<'static> = {
         let mut handlebars = handlebars::Handlebars::new();
 
+        // Register partials
+        handlebars
+            .register_template_file("navbar","./assets/templates/navbar.html")
+            .unwrap();
+        handlebars
+            .register_template_file("styles","./assets/templates/styles.html")
+            .unwrap();
+
+        // Register templates
         handlebars
             .register_template_file("blog", "./assets/templates/blog.html")
             .unwrap();
         handlebars
-            .register_template_file("blockquote", "./assets/templates/blockquote.html")
+            .register_template_file("blockquote", "./assets/templates/modules/blockquote.html")
             .unwrap();
         handlebars
-            .register_template_file("codeblock", "./assets/templates/codeblock.html")
+            .register_template_file("codeblock", "./assets/templates/modules/codeblock.html")
+            .unwrap();
+        handlebars
+            .register_template_file("tag_page", "./assets/templates/tag_page.html")
             .unwrap();
 
         handlebars
@@ -64,7 +74,7 @@ fn main() -> color_eyre::eyre::Result<()> {
         Commands::Build
     }) {
         Commands::Build {} => {
-            build_blogs()?;
+            create_blogs_on_system()?;
         }
     }
 
