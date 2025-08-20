@@ -13,12 +13,12 @@
             "state": {
               "type": "markdown",
               "state": {
-                "file": "blog/adding syntax highlighting.md",
+                "file": "blog/Adding syntax highlighting to my blog software.md",
                 "mode": "source",
                 "source": false
               },
               "icon": "lucide-file",
-              "title": "adding syntax highlighting"
+              "title": "Adding syntax highlighting to my blog software"
             }
           }
         ]
@@ -172,6 +172,7 @@
   },
   "active": "5c62a3ce1b5f519c",
   "lastOpenFiles": [
+    "blog/Ideas for database.md",
     "templates/modules/codeblock.html",
     "templates/modules/blockquote.html",
     "templates/modules",
@@ -188,7 +189,6 @@
     "fonts",
     "blog/example.md",
     "blog/test1.md",
-    "blog/test1..md",
-    "templates/blog.html"
+    "blog/test1..md"
   ]
 }

@@ -91,4 +91,27 @@ The formatting code itself? that is an abomination, and i know theres probably a
 
 The next feature im planning on adding is a tag list showing what posts have what tags
 
+---
+
+Adding tags was done by finding every mention of a tag in the metadata for markdown files and counting how often each tag was found and in what files, then making a new page for each tag
+
+## Thinking about adding a database
+Adding a database would mean i could query posts and image inside the html without having to manually find them in code, i could also speed up building the pages as i could cache compiled codeblocks and other files so that we wouldnt have to modify them every time.
+
+Getting inspiration from [fasterthanli.me](https://fasterthanli.me) i could also query the database in tenplates to show latest posts and other data.
+I can also using lol_html as it seems like it can do cool stuff.
+
+Some problems are that i dont know how i can keep track of a specific versions changes and make sure that each version gets the files they need and reduce the amount of querying needed
+i also still want the source of truth being my markdown files, not a database
+im not skilled enough in rust and it might be a shiny object causing me to become demotivated with the project.
+
+It would be awome thpugh, i can query posts and videos and tags inside the templates without having to do weird parsing and passing variables throughout the program
+I could access the htmk transformed files and the non-modified ones with great ease
+
+**Revision**
+An input file is split up into the individual elements
+Text, italics, codeblock, blockquote etc
+
+
 Clock SVG by Dazzle UI
+
