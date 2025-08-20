@@ -61,7 +61,7 @@ pub(crate) fn create_blogs_on_system() -> color_eyre::eyre::Result<()> {
     fs::create_dir_all("./output/tags")?;
 
     // Output all blogs.
-    for blog in blogs.blogs {
+    for blog in &blogs.blogs {
         if !blog.metadata.published {
             continue;
         }
@@ -72,7 +72,7 @@ pub(crate) fn create_blogs_on_system() -> color_eyre::eyre::Result<()> {
         fs::write(format!("./output/posts/{}.html", blog.id), blog_html)?;
     }
 
-    output_tags_to_fs(blogs.tags)?;
+    output_tags_to_fs(&blogs)?;
 
     // Copy over files
     fs::copy(
@@ -92,10 +92,17 @@ pub(crate) fn create_blogs_on_system() -> color_eyre::eyre::Result<()> {
     Ok(())
 }
 
-fn output_tags_to_fs(tags: HashMap<String, HashSet<u32>>) -> Result<()> {
-    for (tag, blogs_with) in tags {
+fn output_tags_to_fs(blogs: &BlogList) -> Result<()> {
+    for (tag, blogs_with) in &blogs.tags {
+        let posts: Vec<_> = blogs
+            .blogs
+            .iter()
+            .filter(|blog| blogs_with.contains(&blog.id))
+            .collect();
+
         let json_tag = json!({
-            "contents": blogs_with
+            "name": tag,
+            "posts": posts
         });
 
         let contents = HANDLEBARS.render("tag_page", &json_tag)?;

@@ -17,7 +17,14 @@
 
     <!-- Content -->
     <div class="website-contents">
-      <div class="main-blog">{{{ contents }}}</div>
+      <h1>#{{ name }}</h1>
+      <div class="main-blog">
+        {{#each posts}}
+        <a href="../posts/{{ this.id }}.html">{{ this.metadata.title }}</a
+        >{{#unless @last}}
+        <span style="font-size: 40px">.</span>
+        {{/unless}} {{/each}}
+      </div>
     </div>
 
     {{> styles}}
