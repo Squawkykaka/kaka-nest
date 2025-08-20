@@ -1,0 +1,23 @@
+[package]
+name = "kaka-nest"
+version = "0.1.0"
+edition = "2024"
+
+[dependencies]
+syntastica = "0.6.1"
+syntastica-parsers = { version = "0.6.1", features = ["some"] }
+syntastica-themes = "0.6.1"
+# Everything else
+color-eyre = "0.6.5"
+handlebars = "6.3.2"
+pulldown-cmark = { version = "0.13.0", default-features = false, features = [
+    "html",
+    "simd",
+] }
+lazy_static = "1.5.0"
+clap = { version = "4.5.45", features = ["derive"] }
+env_logger = "0.11.8"
+serde.workspace = true
+serde_yaml.workspace = true
+serde_json.workspace = true
+log.workspace = true
