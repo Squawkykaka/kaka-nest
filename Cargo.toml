@@ -1,6 +1,7 @@
 [workspace]
 members = ["kaka-nest"]
 resolver = "2"
+metadata.crane.name = "kaka-nest-workspace"
 
 [workspace.dependencies]
 # Highlighting

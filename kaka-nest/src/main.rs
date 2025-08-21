@@ -8,6 +8,7 @@ use syntastica_parsers::LanguageSetImpl;
 use crate::build_page::create_blogs_on_system;
 
 mod build_page;
+mod discover;
 mod pullmark_parsers;
 mod util;
 
@@ -63,8 +64,8 @@ enum Commands {
 }
 
 fn main() -> color_eyre::eyre::Result<()> {
-    env_logger::init();
     color_eyre::install()?;
+    tracing_subscriber::fmt::init();
 
     let args = Cli::parse();
 

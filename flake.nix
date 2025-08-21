@@ -19,29 +19,70 @@
     flake-utils.lib.eachDefaultSystem (
       system: let
         pkgs = nixpkgs.legacyPackages.${system};
+        inherit (pkgs) lib;
 
         craneLib = crane.mkLib pkgs;
+        src = craneLib.cleanCargoSource ./.;
 
         commonArgs = {
-          src = craneLib.cleanCargoSource ./.;
+          inherit src;
           strictDeps = true;
         };
 
-        kaka-nest = craneLib.buildPackage (
+        cargoArtifacts = craneLib.buildDepsOnly commonArgs;
+        individualCrateArgs =
           commonArgs
           // {
-            cargoArtifacts = craneLib.buildDepsOnly commonArgs;
+            inherit cargoArtifacts;
+            inherit (craneLib.crateNameFromCargoToml {inherit src;}) version;
+            # NB: we disable tests since we'll run them all via cargo-nextest
+            doCheck = false;
+            pname = "kaka-nest-workspace";
+          };
+
+        fileSetForCrate = crate:
+          lib.fileset.toSource {
+            root = ./.;
+            fileset = lib.fileset.unions [
+              ./Cargo.toml
+              ./Cargo.lock
+              (craneLib.fileset.commonCargoSources ./kaka-nest)
+              (craneLib.fileset.commonCargoSources crate)
+            ];
+          };
+
+        kaka-nest = craneLib.buildPackage (
+          individualCrateArgs
+          // {
+            pname = "kaka-nest";
+            cargoExtraArgs = "-p kaka-nest";
+            src = fileSetForCrate ./kaka-nest;
           }
         );
       in {
         checks = {
           inherit kaka-nest;
+
+          workspace-nextest = craneLib.cargoNextest (
+            commonArgs
+            // {
+              inherit cargoArtifacts;
+              partitions = 1;
+              partitionType = "count";
+              cargoNextestPartitionsExtraArgs = "--no-tests=pass";
+            }
+          );
         };
 
-        packages.default = kaka-nest;
+        packages = {
+          inherit kaka-nest;
+          default = kaka-nest;
+        };
 
-        apps.default = flake-utils.lib.mkApp {
-          drv = kaka-nest;
+        apps = {
+          kaka-nest = flake-utils.lib.mkApp {
+            drv = kaka-nest;
+          };
         };
 
         devShells.default = craneLib.devShell {
@@ -59,6 +100,7 @@
             pkgs.linuxKernel.packages.linux_zen.perf
             pkgs.gnuplot
             pkgs.wrangler
+            pkgs.sqlx-cli
           ];
         };
       }
