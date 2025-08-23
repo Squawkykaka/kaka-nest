@@ -13,12 +13,12 @@
             "state": {
               "type": "markdown",
               "state": {
-                "file": "blog/Adding syntax highlighting to my blog software.md",
+                "file": "blog/Setting up a media server.md",
                 "mode": "source",
                 "source": false
               },
               "icon": "lucide-file",
-              "title": "Adding syntax highlighting to my blog software"
+              "title": "Setting up a media server"
             }
           }
         ]
@@ -172,6 +172,10 @@
   },
   "active": "5c62a3ce1b5f519c",
   "lastOpenFiles": [
+    "blog/Adding syntax highlighting to my blog software.md",
+    "blog/Setting up a media server.md",
+    "templates/modules/post.html",
+    "templates/homepage.html",
     "blog/Ideas for database.md",
     "templates/modules/codeblock.html",
     "templates/modules/blockquote.html",
@@ -185,8 +189,6 @@
     "images/question-kaka.png",
     "blog/adding syntax highlighting.md",
     "templates/codeblock.html",
-    "fonts/Iosevka-Regular.ttf",
-    "fonts",
     "blog/example.md",
     "blog/test1.md",
     "blog/test1..md"

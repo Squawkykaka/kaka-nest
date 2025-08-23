@@ -73,6 +73,7 @@ pub(crate) fn create_blogs_on_system() -> color_eyre::eyre::Result<()> {
     }
 
     output_tags_to_fs(&blogs)?;
+    output_homepage_to_fs(&blogs)?;
 
     // Copy over files
     fs::copy(
@@ -117,6 +118,16 @@ fn output_tags_to_fs(blogs: &BlogList) -> Result<()> {
 
         fs::write(format!("./output/tags/{}.html", stripped_tag), contents)?;
     }
+
+    Ok(())
+}
+
+fn output_homepage_to_fs(blogs: &BlogList) -> Result<()> {
+    // The homepage template expects an object with a `blogs` field
+    let ctx = json!({ "blogs": blogs.blogs });
+    let contents = HANDLEBARS.render("homepage", &ctx)?;
+
+    fs::write("./output/home.html", contents)?;
 
     Ok(())
 }

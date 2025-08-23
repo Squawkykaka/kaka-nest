@@ -29,6 +29,9 @@ lazy_static! {
             .register_template_file("blog", "./assets/templates/blog.html")
             .unwrap();
         handlebars
+            .register_template_file("homepage", "./assets/templates/homepage.html")
+            .unwrap();
+        handlebars
             .register_template_file("blockquote", "./assets/templates/modules/blockquote.html")
             .unwrap();
         handlebars
