@@ -35,6 +35,7 @@ I'm making my own blog system, which allows me to write my posts in [Obsidian](h
 - [ ] theme mini codeblocks with a nice border
 - [ ] add a config file, so other people can use easily.
 - [ ] improve how i add modifications as the current implementation is quite bad
+- [ ] add a system to make images smaller and use them
 
 This list will grow over time, but i currently just implemented syntax highlighting using the crate [syntastica](https://crates.io/crates/syntastica) which allows you to easily parse and render code using [tree sitter](https://tree-sitter.github.io/tree-sitter/). to do this i needed to decrypt the inner working of [pulldown_cmark](https://crates.io/crates/pulldown_cmark), which converts markdown to html, and does the bulk of the work.
 

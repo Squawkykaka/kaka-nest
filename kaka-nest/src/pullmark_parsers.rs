@@ -1,6 +1,7 @@
 use std::str::FromStr;
 
 use handlebars::RenderError;
+use log::debug;
 use pulldown_cmark::{CodeBlockKind, CowStr, Event, Parser, Tag, TagEnd};
 use serde::Serialize;
 use syntastica::{Processor, renderer::HtmlRenderer};
@@ -162,7 +163,7 @@ pub(crate) fn format_blockquotes<'a>(
                                 .expect("Failed to render blockquote");
                             return Some(Event::Html(rendered_contents.into()));
                         } else {
-                            println!("You forgot to add a type to blockquote");
+                            debug!("You forgot to add a type to blockquote");
                             continue;
                         };
                     }

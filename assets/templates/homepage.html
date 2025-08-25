@@ -38,13 +38,14 @@
                 <img
                   src="/images/clock-nine.svg"
                   style="width: 16px; height: 16px; vertical-align: middle"
+                  alt=""
                 />
                 {{ this.metadata.read_mins }} mins
               </span>
               <span style="font-size: larger">·</span>
               <span>
                 {{#each this.metadata.tags}}
-                <a href="/tags/{{ this }}">#{{ this }}</a>
+                <a href="/tags/{{ this }}" style="margin-left: 10px;">#{{ this }}</a>
                 {{/each}}
               </span>
             </div>
