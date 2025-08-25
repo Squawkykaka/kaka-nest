@@ -86,7 +86,7 @@ pub(crate) struct BlogList {
     pub tags: HashMap<String, HashSet<String>>,
 }
 
-pub(crate) fn create_blogs_on_system() -> color_eyre::eyre::Result<()> {
+pub fn create_blogs_on_system() -> color_eyre::eyre::Result<()> {
     let blogs: build_page::BlogList = build_page::get_blogs()?;
 
     // Replace silent error swallowing
@@ -206,7 +206,7 @@ fn output_rss_to_fs(blogs: &BlogList) -> Result<()> {
             .link(format!("https://squawkykaka.com/posts/{}.html", post.slug))
             .build();
 
-        info!(post = ?rss_post, "finished post");
+        info!("finished post");
 
         channel.items.push(rss_post);
     }
