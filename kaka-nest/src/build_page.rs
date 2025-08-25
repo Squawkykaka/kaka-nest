@@ -54,12 +54,13 @@ pub(crate) fn create_blogs_on_system() -> color_eyre::eyre::Result<()> {
     // Replace silent error swallowing
     if Path::new("./output").exists() {
         fs::remove_dir_all("./output")?;
-    } else {
-        fs::create_dir_all("./output/posts")?;
     }
+
+    // Copy static files
+    copy_dir::copy_dir("./assets/static", "./output")?;
+
     // make output dirs
     fs::create_dir_all("./output/posts")?;
-    fs::create_dir_all("./output/images")?;
     fs::create_dir_all("./output/tags")?;
 
     // Output all blogs.
@@ -77,21 +78,6 @@ pub(crate) fn create_blogs_on_system() -> color_eyre::eyre::Result<()> {
     output_tags_to_fs(&blogs)?;
     output_homepage_to_fs(&blogs)?;
     output_rss_to_fs(&blogs)?;
-
-    // Copy over files
-    fs::copy(
-        "./assets/fonts/Iosevka-Regular.ttf",
-        "./output/Iosevka-Regular.ttf",
-    )?;
-
-    let images = visit_dir(Path::new("./assets/images"))?;
-    for image_path in images {
-        let file_name = image_path.file_name().unwrap();
-        fs::copy(
-            &image_path,
-            format!("./output/images/{}", file_name.to_str().unwrap()),
-        )?;
-    }
 
     Ok(())
 }

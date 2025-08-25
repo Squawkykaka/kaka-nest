@@ -4,21 +4,17 @@
     "type": "split",
     "children": [
       {
-        "id": "983484f06d058fa5",
+        "id": "7e14a2614948879a",
         "type": "tabs",
         "children": [
           {
-            "id": "fa7837fd63ef4646",
+            "id": "c2482452a1ca92ab",
             "type": "leaf",
             "state": {
-              "type": "markdown",
-              "state": {
-                "file": "blog/test.md",
-                "mode": "source",
-                "source": false
-              },
+              "type": "empty",
+              "state": {},
               "icon": "lucide-file",
-              "title": "test"
+              "title": "New tab"
             }
           }
         ]
@@ -170,11 +166,20 @@
       "markdown-importer:Open format converter": false
     }
   },
-  "active": "fa7837fd63ef4646",
+  "active": "c2482452a1ca92ab",
   "lastOpenFiles": [
-    "blog/Setting up a media server.md",
-    "blog/test.md",
+    "blog-media/jellyfin login page.png",
+    "blog-media/finished setup jellyfin.png",
+    "blog-media/dashboard menu jellyfin.png",
     "blog/Ideas for database.md",
+    "blog/test.md",
+    "static/Iosevka-Regular.ttf",
+    "static/images/question-kaka.png",
+    "static/images/clock-nine.svg",
+    "static/images",
+    "static/_redirects",
+    "static",
+    "blog/Setting up a media server.md",
     "blog/Adding syntax highlighting to my blog software.md",
     "images/clock-nine.svg",
     "images/question-kaka.png",
@@ -182,20 +187,12 @@
     "blog/blog-media/tvshows media library jellyfin.png",
     "blog/blog-media/the path selection jellyfin.png",
     "blog/blog-media/the folders button jellyfin.png",
-    "blog/blog-media/remote access settings.png",
-    "blog/blog-media/movie playing jellyfin.png",
-    "blog/blog-media/movie library setup.png",
-    "blog/blog-media/jellyfin with a movie showing up.png",
     "blog/blog-media",
     "templates/modules/post.html",
     "templates/homepage.html",
     "templates/modules/codeblock.html",
     "templates/modules/blockquote.html",
     "templates/modules",
-    "templates/styles.html",
-    "templates/navbar.html",
-    "templates/base.html",
-    "templates/tag_page.html",
     "blog/adding syntax highlighting.md",
     "blog/example.md",
     "blog/test1.md",

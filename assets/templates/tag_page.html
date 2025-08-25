@@ -20,7 +20,7 @@
       <h1>#{{ name }}</h1>
       <div class="main-blog">
         {{#each posts}}
-        <a href="../posts/{{ this.slug }}.html">{{ this.title }}</a>{{#unless
+        <a href="/posts/{{ this.slug }}.html">{{ this.title }}</a>{{#unless
         @last}}
         <span style="font-size: 40px">.</span>
         {{/unless}} {{/each}}

@@ -27,7 +27,8 @@ I'm making my own blog system, which allows me to write my posts in [Obsidian](h
 - [x] Little "mini avatars", which can show different expressions
 - [x] tags list, where you can see what posts have what tags
 - [ ] A server where it uploads to something like cloudflare pages so people can view my site.
-- [ ] A searching system and tagging system, so people can find posts based on tags.
+- [x] A tagging system, so people can find posts based on tags.
+- [ ] A searching system, using wasm
 - [ ] Live reloading the websites html, whenever changes happen
 - [ ] Add a way to generate a new post easily, and admin options when inside the website.
 - [x] Use a better font, like [Iosevka](https://github.com/be5invis/Iosevka)
@@ -97,6 +98,7 @@ The next feature im planning on adding is a tag list showing what posts have wha
 Adding tags was done by finding every mention of a tag in the metadata for markdown files and counting how often each tag was found and in what files, then making a new page for each tag
 
 ## Thinking about adding a database
+
 Adding a database would mean i could query posts and image inside the html without having to manually find them in code, i could also speed up building the pages as i could cache compiled codeblocks and other files so that we wouldnt have to modify them every time.
 
 Getting inspiration from [fasterthanli.me](https://fasterthanli.me) i could also query the database in tenplates to show latest posts and other data.
@@ -113,6 +115,4 @@ I could access the htmk transformed files and the non-modified ones with great e
 An input file is split up into the individual elements
 Text, italics, codeblock, blockquote etc
 
-
 Clock SVG by Dazzle UI
-
