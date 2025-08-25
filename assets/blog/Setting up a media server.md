@@ -6,6 +6,7 @@ tags:
   - "#linux"
   - "#mediaserver"
   - "#docker"
+description: Describes the process of setting up jellyfin using docker, this was made for school
 ---
 
 ## Setting up machine.

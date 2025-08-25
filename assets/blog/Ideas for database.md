@@ -6,6 +6,7 @@ tags:
   - "#rust"
   - "#blog-software"
   - "#database"
+description: Some ideas for database related stuff for my blog software
 ---
 Whenever a file gets changed, the files contents gets hashed and the change gets pushed into the database.
 
