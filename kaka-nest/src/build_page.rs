@@ -5,12 +5,12 @@ use std::{
 };
 
 use color_eyre::eyre::Result;
-use log::{debug, info};
 use lol_html::{HtmlRewriter, Settings, element};
 use pulldown_cmark::{Options, Parser};
 use rss::{Category, ChannelBuilder, Item, ItemBuilder, extension::Extension};
 use serde::{Deserialize, Serialize};
-use serde_json::json;
+use serde_json::{error, json};
+use tracing::{Level, debug, info, span, trace};
 
 use crate::{
     HANDLEBARS, TL_PROCESSOR, build_page,
@@ -30,6 +30,7 @@ impl Blog {
         let rendered_string = HANDLEBARS.render("blog", self)?;
 
         // Replace local image links with /images/{{ image }}
+        debug!("rewriting img links");
         let mut output = vec![];
         let mut rewriter = HtmlRewriter::new(
             Settings {
@@ -87,27 +88,35 @@ pub(crate) fn create_blogs_on_system() -> color_eyre::eyre::Result<()> {
     let blogs: build_page::BlogList = build_page::get_blogs()?;
 
     // Replace silent error swallowing
+    trace!("Deleting output directory");
     if Path::new("./output").exists() {
         fs::remove_dir_all("./output")?;
     }
 
     // Copy static files
+    info!("Copying static files");
     copy_dir::copy_dir("./assets/static", "./output")?;
 
     // Copy blog images
-    for image in fs::read_dir("./assets/blog/images")? {
-        match image {
-            Ok(image) => {
-                if image.file_type()?.is_file() {
-                    // dbg!(image);
-                    let ostr_filename = image.file_name();
-                    let image_name = ostr_filename.to_str().unwrap();
+    {
+        let span = span!(Level::INFO, "copy blog images");
+        let _enter = span.enter();
 
-                    fs::copy(image.path(), format!("./output/images/{}", image_name))?;
+        for image in fs::read_dir("./assets/blog/images")? {
+            match image {
+                Ok(image) => {
+                    if image.file_type()?.is_file() {
+                        // dbg!(image);
+                        debug!(file = %image.path().display(), "copying image");
+                        let ostr_filename = image.file_name();
+                        let image_name = ostr_filename.to_str().unwrap();
+
+                        fs::copy(image.path(), format!("./output/images/{}", image_name))?;
+                    }
                 }
-            }
-            Err(e) => {
-                dbg!(e);
+                Err(e) => {
+                    tracing::error!(?e);
+                }
             }
         }
     }
@@ -117,25 +126,38 @@ pub(crate) fn create_blogs_on_system() -> color_eyre::eyre::Result<()> {
     fs::create_dir_all("./output/tags")?;
 
     // Output all blogs.
-    for blog in &blogs.blogs {
-        if !blog.metadata.published {
-            continue;
+    {
+        let span = span!(Level::INFO, "output blogs");
+        let _enter = span.enter();
+
+        for blog in &blogs.blogs {
+            if !blog.metadata.published {
+                continue;
+            }
+
+            let span = tracing::span!(Level::INFO, "render blog", blog = blog.title);
+            let _enter = span.enter();
+
+            info!("converting to html");
+            let blog_html = blog.to_blog_html()?;
+
+            debug!("writing to filesytem");
+            fs::write(format!("./output/posts/{}.html", blog.slug), blog_html)?;
         }
 
-        info!("Converting blog {} to html", blog.title);
-        let blog_html = blog.to_blog_html()?;
-
-        fs::write(format!("./output/posts/{}.html", blog.slug), blog_html)?;
+        output_tags_to_fs(&blogs)?;
+        output_homepage_to_fs(&blogs)?;
+        output_rss_to_fs(&blogs)?;
     }
-
-    output_tags_to_fs(&blogs)?;
-    output_homepage_to_fs(&blogs)?;
-    output_rss_to_fs(&blogs)?;
 
     Ok(())
 }
 
 fn output_rss_to_fs(blogs: &BlogList) -> Result<()> {
+    let span = span!(Level::INFO, "output rss");
+    let _enter = span.enter();
+
+    info!("creating channel");
     let mut channel = ChannelBuilder::default()
         .title("Squawkykaka")
         .link("https://squawkykaka.com")
@@ -144,12 +166,16 @@ fn output_rss_to_fs(blogs: &BlogList) -> Result<()> {
 
     // TODO fix all the .clones here
     for post in &blogs.blogs {
+        let span = span!(Level::INFO, "post catagories", post = post.title);
+        let _enter = span.enter();
+
         let catagories = {
             let mut catagories = vec![];
 
             match post.metadata.tags.clone() {
                 Some(tags) => {
                     for tag in tags {
+                        debug!(tag = tag, "new catagory");
                         catagories.push(Category {
                             name: tag,
                             domain: None,
@@ -159,6 +185,7 @@ fn output_rss_to_fs(blogs: &BlogList) -> Result<()> {
                     catagories
                 }
                 None => {
+                    debug!("No catagorys found");
                     catagories.push(Category {
                         name: "no_catagory".into(),
                         domain: None,
@@ -178,9 +205,12 @@ fn output_rss_to_fs(blogs: &BlogList) -> Result<()> {
             .link(format!("https://squawkykaka.com/posts/{}.html", post.slug))
             .build();
 
+        info!(post = ?rss_post, "finished post");
+
         channel.items.push(rss_post);
     }
 
+    debug!("writing rss to fs");
     fs::write(format!("./output/index.xml",), channel.to_string())?;
 
     Ok(())
@@ -188,7 +218,15 @@ fn output_rss_to_fs(blogs: &BlogList) -> Result<()> {
 }
 
 fn output_tags_to_fs(blogs: &BlogList) -> Result<()> {
+    let span = span!(Level::DEBUG, "output tags");
+    let _enter = span.enter();
+
+    info!("outputting tags");
     for (tag, blogs_with) in &blogs.tags {
+        let span = span!(Level::DEBUG, "tag", name = tag);
+        let _enter = span.enter();
+
+        debug!("filtering posts");
         let posts: Vec<_> = blogs
             .blogs
             .iter()
@@ -202,14 +240,13 @@ fn output_tags_to_fs(blogs: &BlogList) -> Result<()> {
 
         let contents = HANDLEBARS.render("tag_page", &json_tag)?;
 
+        trace!("stripping # prefix");
         let stripped_tag = match tag.strip_prefix("#") {
             Some(tag) => tag,
-            None => {
-                debug!("Tag without # prefix ({})", tag);
-                tag.as_str()
-            }
+            None => tag.as_str(),
         };
 
+        debug!("writing to fs");
         fs::write(format!("./output/tags/{}.html", stripped_tag), contents)?;
     }
 
@@ -217,6 +254,10 @@ fn output_tags_to_fs(blogs: &BlogList) -> Result<()> {
 }
 
 fn output_homepage_to_fs(blogs: &BlogList) -> Result<()> {
+    let span = span!(Level::DEBUG, "output homepage");
+    let _enter = span.enter();
+    info!("outputting homepage");
+
     // The homepage template expects an object with a `blogs` field
     let ctx = json!({ "blogs": blogs.blogs });
     let contents = HANDLEBARS.render("homepage", &ctx)?;
@@ -229,6 +270,7 @@ fn output_homepage_to_fs(blogs: &BlogList) -> Result<()> {
 pub fn get_blogs() -> Result<BlogList> {
     let mut blog_list = BlogList::default();
 
+    info!("getting blogs");
     let blog_paths = get_blog_paths()?;
 
     for blog_path in blog_paths {
@@ -239,6 +281,10 @@ pub fn get_blogs() -> Result<BlogList> {
 }
 
 fn render_blog(blog_path: PathBuf, blog_list: &mut BlogList) -> Result<()> {
+    let span = span!(Level::DEBUG, "render post", post = %blog_path.as_path().display());
+    let _enter = span.enter();
+
+    trace!("reading post from fs");
     let blog_bytes = fs::read(&blog_path)?;
     let blog_contents = std::str::from_utf8(&blog_bytes)?;
 
@@ -246,34 +292,41 @@ fn render_blog(blog_path: PathBuf, blog_list: &mut BlogList) -> Result<()> {
     let html_output = render_html_page_from_markdown(&blog_contents);
 
     // get metadata options
-    let blog_metadata_string = match blog_contents.split("---").nth(1) {
-        Some(blog_metadata) => blog_metadata,
-        None => return Err(color_eyre::eyre::eyre!("Didnt include metadata for file")),
-    };
+    let blog_metadata = {
+        debug!("extracting metadata from file");
+        let blog_metadata_string = match blog_contents.split("---").nth(1) {
+            Some(blog_metadata) => blog_metadata,
+            None => return Err(color_eyre::eyre::eyre!("Didnt include metadata for file")),
+        };
 
-    let mut blog_metadata: BlogMetadata = serde_yaml::from_str(blog_metadata_string)?;
+        let mut blog_metadata: BlogMetadata = serde_yaml::from_str(blog_metadata_string)?;
 
-    // Remove '#' prefix from each tag if present
-    if let Some(tags) = &mut blog_metadata.tags {
-        for tag in tags.iter_mut() {
-            if let Some(stripped) = tag.strip_prefix('#') {
-                *tag = stripped.to_string();
+        // Remove '#' prefix from each tag if present
+        if let Some(tags) = &mut blog_metadata.tags {
+            for tag in tags.iter_mut() {
+                if let Some(stripped) = tag.strip_prefix('#') {
+                    *tag = stripped.to_string();
+                }
             }
         }
-    }
+
+        blog_metadata
+    };
 
     // TODO Chaneg to maybe add a date suffix maybe from file creation date?
+    debug!("getting post title");
     let blog_title = blog_path
         .file_name()
-        .expect("Patth returned is ..")
-        .to_string_lossy()
+        .expect("Path returned is ..")
+        .to_str()
+        .unwrap()
         .strip_suffix(".md")
-        .expect("Path should have .md extension when making blog title")
-        .to_string();
+        .expect("Path should have .md extension when making blog title");
+
     let blog_slug = blog_title.replace(" ", "-").to_ascii_lowercase();
 
     let blog = Blog {
-        title: blog_title.clone(),
+        title: String::from(blog_title),
         slug: blog_slug.clone(),
         metadata: blog_metadata,
         contents: html_output,
@@ -281,8 +334,13 @@ fn render_blog(blog_path: PathBuf, blog_list: &mut BlogList) -> Result<()> {
 
     // Insert blog into list
     // FIXME change to not clone each time, probably using &str
+
     if let Some(tags) = &blog.metadata.tags {
+        let span = span!(Level::DEBUG, "insert tags");
+        let _enter = span.enter();
+
         for tag in tags {
+            debug!(tag = tag, "found tag");
             blog_list
                 .tags
                 .entry(tag.to_string())
@@ -297,6 +355,9 @@ fn render_blog(blog_path: PathBuf, blog_list: &mut BlogList) -> Result<()> {
 }
 
 fn render_html_page_from_markdown(input: &str) -> String {
+    let span = span!(Level::INFO, "pullmark parsing");
+    let _enter = span.enter();
+
     let mut pullmark_options = Options::empty();
     pullmark_options.insert(Options::ENABLE_WIKILINKS);
     pullmark_options.insert(Options::ENABLE_STRIKETHROUGH);
@@ -304,8 +365,11 @@ fn render_html_page_from_markdown(input: &str) -> String {
     pullmark_options.insert(Options::ENABLE_TASKLISTS);
 
     let html_output = TL_PROCESSOR.with_borrow_mut(|processer| {
+        info!("created parser");
         let parser = Parser::new_ext(input, pullmark_options);
+        debug!("highlighting codeblocks");
         let parser = highlight_codeblocks(parser, processer);
+        debug!("formatting blockquotes");
         let parser = format_blockquotes(parser);
 
         let mut html_output = String::new();
@@ -313,6 +377,8 @@ fn render_html_page_from_markdown(input: &str) -> String {
 
         html_output
     });
+
+    debug!("finished parsing into html");
 
     html_output
 }

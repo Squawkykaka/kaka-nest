@@ -1,9 +1,9 @@
 use clap::{Parser, Subcommand};
 use handlebars::Handlebars;
 use lazy_static::lazy_static;
-use log::info;
 use syntastica::Processor;
 use syntastica_parsers::LanguageSetImpl;
+use tracing::info;
 
 use crate::build_page::create_blogs_on_system;
 

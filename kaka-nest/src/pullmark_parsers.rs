@@ -1,11 +1,11 @@
 use std::str::FromStr;
 
 use handlebars::RenderError;
-use log::debug;
 use pulldown_cmark::{CodeBlockKind, CowStr, Event, Parser, Tag, TagEnd};
 use serde::Serialize;
 use syntastica::{Processor, renderer::HtmlRenderer};
 use syntastica_parsers::{Lang, LanguageSetImpl};
+use tracing::debug;
 
 use crate::{HANDLEBARS, TL_PROCESSOR};
 

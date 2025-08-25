@@ -1,5 +1,5 @@
 use ignore::{DirEntry, Walk};
-use log::error;
+use tracing::error;
 
 async fn discover_assets() {
     for file in Walk::new("./assets") {

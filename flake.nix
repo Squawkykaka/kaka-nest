@@ -9,15 +9,17 @@
     flake-utils.url = "github:numtide/flake-utils";
   };
 
-  outputs = {
-    self,
-    nixpkgs,
-    crane,
-    flake-utils,
-    ...
-  }:
+  outputs =
+    {
+      self,
+      nixpkgs,
+      crane,
+      flake-utils,
+      ...
+    }:
     flake-utils.lib.eachDefaultSystem (
-      system: let
+      system:
+      let
         pkgs = nixpkgs.legacyPackages.${system};
         inherit (pkgs) lib;
 
@@ -30,17 +32,16 @@
         };
 
         cargoArtifacts = craneLib.buildDepsOnly commonArgs;
-        individualCrateArgs =
-          commonArgs
-          // {
-            inherit cargoArtifacts;
-            inherit (craneLib.crateNameFromCargoToml {inherit src;}) version;
-            # NB: we disable tests since we'll run them all via cargo-nextest
-            doCheck = false;
-            pname = "kaka-nest-workspace";
-          };
+        individualCrateArgs = commonArgs // {
+          inherit cargoArtifacts;
+          inherit (craneLib.crateNameFromCargoToml { inherit src; }) version;
+          # NB: we disable tests since we'll run them all via cargo-nextest
+          doCheck = false;
+          pname = "kaka-nest-workspace";
+        };
 
-        fileSetForCrate = crate:
+        fileSetForCrate =
+          crate:
           lib.fileset.toSource {
             root = ./.;
             fileset = lib.fileset.unions [
@@ -59,7 +60,8 @@
             src = fileSetForCrate ./kaka-nest;
           }
         );
-      in {
+      in
+      {
         checks = {
           inherit kaka-nest;
 
@@ -99,7 +101,7 @@
             pkgs.hyperfine
             pkgs.linuxKernel.packages.linux_zen.perf
             pkgs.gnuplot
-            pkgs.wrangler
+            x
             pkgs.sqlx-cli
           ];
         };
