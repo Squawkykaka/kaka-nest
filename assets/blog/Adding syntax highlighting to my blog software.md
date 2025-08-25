@@ -32,6 +32,7 @@ I'm making my own blog system, which allows me to write my posts in [Obsidian](h
 - [ ] Live reloading the websites html, whenever changes happen
 - [ ] Add a way to generate a new post easily, and admin options when inside the website.
 - [x] Use a better font, like [Iosevka](https://github.com/be5invis/Iosevka)
+- [ ] theme mini codeblocks with a nice border
 - [ ] add a config file, so other people can use easily.
 - [ ] improve how i add modifications as the current implementation is quite bad
 

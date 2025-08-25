@@ -1,11 +1,12 @@
 use std::{
     collections::{HashMap, HashSet},
-    fs,
+    fs::{self, FileType},
     path::{Path, PathBuf},
 };
 
 use color_eyre::eyre::Result;
 use log::{debug, info};
+use lol_html::{HtmlRewriter, Settings, element};
 use pulldown_cmark::{Options, Parser};
 use rss::{Category, ChannelBuilder, Item, ItemBuilder, extension::Extension};
 use serde::{Deserialize, Serialize};
@@ -28,7 +29,41 @@ impl Blog {
     pub(crate) fn to_blog_html(&self) -> Result<String> {
         let rendered_string = HANDLEBARS.render("blog", self)?;
 
-        Ok(rendered_string)
+        // Replace local image links with /images/{{ image }}
+        let mut output = vec![];
+        let mut rewriter = HtmlRewriter::new(
+            Settings {
+                element_content_handlers: vec![element!("img[src]", |el| {
+                    let binding = el.get_attribute("src").unwrap();
+                    let img_name = binding.as_str();
+
+                    if let Some(src) = el.get_attribute("src") {
+                        let l = src.to_lowercase();
+
+                        let is_absolute = l.starts_with("http://")
+                            || l.starts_with("https://")
+                            || l.starts_with("data:")
+                            || src.starts_with('/')
+                            || src.starts_with("//");
+
+                        if !is_absolute {
+                            let new_src = format!("/images/{}", img_name);
+
+                            el.set_attribute("src", &new_src)?;
+                        }
+                    }
+
+                    Ok(())
+                })],
+                ..Settings::new()
+            },
+            |c: &[u8]| output.extend_from_slice(c),
+        );
+
+        rewriter.write(&rendered_string.into_bytes())?;
+        rewriter.end()?;
+
+        Ok(String::from_utf8(output)?)
     }
 }
 
@@ -58,6 +93,24 @@ pub(crate) fn create_blogs_on_system() -> color_eyre::eyre::Result<()> {
 
     // Copy static files
     copy_dir::copy_dir("./assets/static", "./output")?;
+
+    // Copy blog images
+    for image in fs::read_dir("./assets/blog/images")? {
+        match image {
+            Ok(image) => {
+                if image.file_type()?.is_file() {
+                    // dbg!(image);
+                    let ostr_filename = image.file_name();
+                    let image_name = ostr_filename.to_str().unwrap();
+
+                    fs::copy(image.path(), format!("./output/images/{}", image_name))?;
+                }
+            }
+            Err(e) => {
+                dbg!(e);
+            }
+        }
+    }
 
     // make output dirs
     fs::create_dir_all("./output/posts")?;
@@ -237,8 +290,6 @@ fn render_blog(blog_path: PathBuf, blog_list: &mut BlogList) -> Result<()> {
                 .insert(blog_slug.clone());
         }
     }
-
-    dbg!(&blog);
 
     blog_list.blogs.push(blog);
 
