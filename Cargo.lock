@@ -788,7 +788,6 @@ dependencies = [
  "copy_dir",
  "handlebars",
  "ignore",
- "lazy_static",
  "lol_html",
  "pulldown-cmark",
  "rss",

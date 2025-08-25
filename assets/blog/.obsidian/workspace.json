@@ -11,10 +11,14 @@
             "id": "c2482452a1ca92ab",
             "type": "leaf",
             "state": {
-              "type": "empty",
-              "state": {},
+              "type": "markdown",
+              "state": {
+                "file": "Setting up a media server.md",
+                "mode": "source",
+                "source": false
+              },
               "icon": "lucide-file",
-              "title": "New tab"
+              "title": "Setting up a media server"
             }
           }
         ]
@@ -168,6 +172,9 @@
   },
   "active": "c2482452a1ca92ab",
   "lastOpenFiles": [
+    "Media server notes for school.md",
+    "Setting up a media server.md",
+    "test.md",
     "images/Setting up a media server.png",
     "images/whoops forgot the folders.png",
     "images/tvshows media library jellyfin.png",
@@ -178,7 +185,6 @@
     "images/movie library setup.png",
     "images/jellyfin with a movie showing up.png",
     "images/jellyfin no movies.png",
-    "images/jellyfin metadata settings.png",
     "images",
     "blog/Ideas for database.md",
     "blog/test.md",

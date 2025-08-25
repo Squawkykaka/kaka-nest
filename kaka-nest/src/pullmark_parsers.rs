@@ -7,7 +7,7 @@ use syntastica::{Processor, renderer::HtmlRenderer};
 use syntastica_parsers::{Lang, LanguageSetImpl};
 use tracing::debug;
 
-use crate::{HANDLEBARS, TL_PROCESSOR};
+use crate::HANDLEBARS;
 
 #[derive(Serialize)]
 struct CodeBlock {
