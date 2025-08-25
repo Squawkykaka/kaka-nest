@@ -1,3 +1,5 @@
+#![warn(clippy::pedantic)]
+
 use handlebars::Handlebars;
 use std::sync::LazyLock;
 use syntastica::Processor;

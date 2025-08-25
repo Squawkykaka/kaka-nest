@@ -26,10 +26,10 @@
           overlays = [(import rust-overlay)];
         };
 
-        toolchain =
-          pkgs.rust-bin.selectLatestNightlyWith
-          (toolchain: toolchain.default);
-
+        toolchain = pkgs.rust-bin.selectLatestNightlyWith (toolchain:
+          toolchain.default.override {
+            extensions = ["rust-src"];
+          });
         naersk' = pkgs.callPackage naersk {
           cargo = toolchain;
           rustc = toolchain;
@@ -38,6 +38,10 @@
         packages.default = naersk'.buildPackage {
           pname = "kaka-nest";
           src = ./.;
+          buildInputs = [
+            pkgs.mold
+            pkgs.clang
+          ];
         };
 
         devShells.default = pkgs.mkShell {
@@ -49,6 +53,9 @@
             pkgs.hyperfine
             pkgs.linuxKernel.packages.linux_zen.perf
             pkgs.gnuplot
+            pkgs.mold
+            pkgs.clang
+            pkgs.rust-analyzer
             toolchain
           ];
         };

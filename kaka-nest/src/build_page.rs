@@ -4,7 +4,7 @@ use std::{
     path::{Path, PathBuf},
 };
 
-use color_eyre::eyre::Result;
+use color_eyre::eyre::{OptionExt, Result};
 use lol_html::{HtmlRewriter, Settings, element};
 use pulldown_cmark::{Options, Parser};
 use rss::{Category, ChannelBuilder, ItemBuilder};
@@ -19,14 +19,14 @@ use crate::{
 };
 
 #[derive(Debug, Serialize)]
-pub(crate) struct Blog {
+pub struct Blog {
     pub title: String,
     pub slug: String,
     pub metadata: BlogMetadata,
     pub contents: String,
 }
 impl Blog {
-    pub(crate) fn to_blog_html(&self) -> Result<String> {
+    pub(crate) fn to_rendered_html(&self) -> Result<String> {
         let rendered_string = HANDLEBARS.render("blog", self)?;
 
         // Replace local image links with /images/{{ image }}
@@ -71,7 +71,7 @@ impl Blog {
 }
 
 #[derive(Serialize, Deserialize, Debug)]
-pub(crate) struct BlogMetadata {
+pub struct BlogMetadata {
     pub date: String,
     pub published: bool,
     pub tags: Option<Vec<String>>,
@@ -81,13 +81,32 @@ pub(crate) struct BlogMetadata {
 
 /// A struct containing all currently exisiting blogs & tags
 #[derive(Default, Debug)]
-pub(crate) struct BlogList {
+pub struct BlogList {
     pub blogs: Vec<Blog>,
     pub tags: HashMap<String, HashSet<String>>,
 }
 
+/// This function reads all input files from the operating systemm,
+/// builds the blogs and Copys the images and static assets to output directory
+///
+/// # Errors
+/// - Deleting output directory
+/// - Copying assets
+/// - Converting `OsStr` to string
+/// - Reading input dir
 pub fn create_blogs_on_system() -> color_eyre::eyre::Result<()> {
-    let blogs: build_page::BlogList = build_page::get_blogs()?;
+    let blogs: build_page::BlogList = {
+        let mut blog_list = BlogList::default();
+
+        info!("getting blogs");
+        let blog_paths = get_blog_paths()?;
+
+        for blog_path in blog_paths {
+            render_blog(&blog_path, &mut blog_list)?;
+        }
+
+        blog_list
+    };
 
     // Replace silent error swallowing
     trace!("Deleting output directory");
@@ -113,7 +132,7 @@ pub fn create_blogs_on_system() -> color_eyre::eyre::Result<()> {
                         let ostr_filename = image.file_name();
                         let image_name = ostr_filename
                             .to_str()
-                            .expect("Failed to convert OsStr to string");
+                            .ok_or_eyre("Failed to convert OsStr to filename")?;
 
                         fs::copy(image.path(), format!("./output/images/{image_name}"))?;
                     }
@@ -143,7 +162,7 @@ pub fn create_blogs_on_system() -> color_eyre::eyre::Result<()> {
             let _enter = span.enter();
 
             info!("converting to html");
-            let blog_html = blog.to_blog_html()?;
+            let blog_html = blog.to_rendered_html()?;
 
             debug!("writing to filesytem");
             fs::write(format!("./output/posts/{}.html", blog.slug), blog_html)?;
@@ -176,11 +195,11 @@ fn output_rss_to_fs(blogs: &BlogList) -> Result<()> {
         let catagories = {
             let mut catagories = vec![];
 
-            if let Some(tags) = post.metadata.tags.clone() {
+            if let Some(tags) = post.metadata.tags.as_ref() {
                 for tag in tags {
                     debug!(tag = tag, "new catagory");
                     catagories.push(Category {
-                        name: tag,
+                        name: tag.clone(),
                         domain: None,
                     });
                 }
@@ -268,19 +287,6 @@ fn output_homepage_to_fs(blogs: &BlogList) -> Result<()> {
     Ok(())
 }
 
-pub fn get_blogs() -> Result<BlogList> {
-    let mut blog_list = BlogList::default();
-
-    info!("getting blogs");
-    let blog_paths = get_blog_paths()?;
-
-    for blog_path in blog_paths {
-        render_blog(&blog_path, &mut blog_list)?;
-    }
-
-    Ok(blog_list)
-}
-
 fn render_blog(blog_path: &PathBuf, blog_list: &mut BlogList) -> Result<()> {
     let span = span!(Level::DEBUG, "render post", post = %blog_path.as_path().display());
     let _enter = span.enter();
@@ -335,17 +341,20 @@ fn render_blog(blog_path: &PathBuf, blog_list: &mut BlogList) -> Result<()> {
     // Insert blog into list
     // FIXME change to not clone each time, probably using &str
 
+    let blog_slug = blog_title.replace(' ', "-").to_ascii_lowercase();
+    let slug_for_insertion = blog_slug.clone(); // used only if needed
+
     if let Some(tags) = &blog.metadata.tags {
         let span = span!(Level::DEBUG, "insert tags");
         let _enter = span.enter();
 
         for tag in tags {
-            debug!(tag = tag, "found tag");
+            let tag = tag.as_str(); // keep &str where possible
             blog_list
                 .tags
-                .entry(tag.to_string())
+                .entry(tag.to_string()) // required allocation
                 .or_default()
-                .insert(blog_slug.clone());
+                .insert(slug_for_insertion.clone()); // still cloned per insert
         }
     }
 
@@ -365,7 +374,7 @@ fn render_html_page_from_markdown(input: &str) -> String {
     pullmark_options.insert(Options::ENABLE_TASKLISTS);
 
     let html_output = TL_PROCESSOR.with_borrow_mut(|processer| {
-        info!("created parser");
+        debug!("created parser");
         let parser = Parser::new_ext(input, pullmark_options);
         debug!("highlighting codeblocks");
         let parser = highlight_codeblocks(parser, processer);
