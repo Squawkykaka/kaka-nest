@@ -7,6 +7,7 @@ use std::{
 use color_eyre::eyre::Result;
 use log::{debug, info};
 use pulldown_cmark::{Options, Parser};
+use rss::{Category, ChannelBuilder, Item, ItemBuilder, extension::Extension};
 use serde::{Deserialize, Serialize};
 use serde_json::json;
 
@@ -75,6 +76,7 @@ pub(crate) fn create_blogs_on_system() -> color_eyre::eyre::Result<()> {
 
     output_tags_to_fs(&blogs)?;
     output_homepage_to_fs(&blogs)?;
+    output_rss_to_fs(&blogs)?;
 
     // Copy over files
     fs::copy(
@@ -92,6 +94,58 @@ pub(crate) fn create_blogs_on_system() -> color_eyre::eyre::Result<()> {
     }
 
     Ok(())
+}
+
+fn output_rss_to_fs(blogs: &BlogList) -> Result<()> {
+    let mut channel = ChannelBuilder::default()
+        .title("Squawkykaka")
+        .link("https://squawkykaka.com")
+        .description("The RSS Feed for squawykaka.com")
+        .build();
+
+    // TODO fix all the .clones here
+    for post in &blogs.blogs {
+        let catagories = {
+            let mut catagories = vec![];
+
+            match post.metadata.tags.clone() {
+                Some(tags) => {
+                    for tag in tags {
+                        catagories.push(Category {
+                            name: tag,
+                            domain: None,
+                        });
+                    }
+
+                    catagories
+                }
+                None => {
+                    catagories.push(Category {
+                        name: "no_catagory".into(),
+                        domain: None,
+                    });
+
+                    catagories
+                }
+            }
+        };
+
+        let rss_post = ItemBuilder::default()
+            .title(post.title.clone())
+            .author(String::from("squawkykaka@gmail.com"))
+            .categories(catagories)
+            .pub_date(post.metadata.date.clone())
+            .content(post.contents.clone())
+            .link(format!("https://squawkykaka.com/posts/{}.html", post.slug))
+            .build();
+
+        channel.items.push(rss_post);
+    }
+
+    fs::write(format!("./output/index.xml",), channel.to_string())?;
+
+    Ok(())
+    // todo!()
 }
 
 fn output_tags_to_fs(blogs: &BlogList) -> Result<()> {
