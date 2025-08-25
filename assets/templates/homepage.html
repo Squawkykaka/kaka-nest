@@ -24,36 +24,42 @@
             <a href="./posts/{{ this.slug }}.html" style="color: #abb2bf; text-align: center;">
                 <h2>{{ this.title }}</h3>
             </a>
-        <div
-          style="
-            display: flex;
-            justify-content: center;
-            gap: 5px;
-            align-items: center;
-          "
-        >
-          <span>{{ this.metadata.date }}</span>
-          <span style="font-size: larger">·</span>
-          <span>
-            <img
-              src="./images/clock-nine.svg"
-              style="width: 16px; height: 16px; vertical-align: middle"
-            />
-            {{ this.metadata.read_mins }} mins
-          </span>
-          <span style="font-size: larger">·</span>
-          <span>
-            {{#each this.metadata.tags}}
-            <a href="./tags/{{ this }}.html">#{{ this }}</a>
-            {{/each}}
-          </span>
-        </div>
+            <div
+              style="
+                display: flex;
+                justify-content: center;
+                gap: 5px;
+                align-items: center;
+              "
+            >
+              <span>{{ this.metadata.date }}</span>
+              <span style="font-size: larger">·</span>
+              <span>
+                <img
+                  src="./images/clock-nine.svg"
+                  style="width: 16px; height: 16px; vertical-align: middle"
+                />
+                {{ this.metadata.read_mins }} mins
+              </span>
+              <span style="font-size: larger">·</span>
+              <span>
+                {{#each this.metadata.tags}}
+                <a href="./tags/{{ this }}.html">#{{ this }}</a>
+                {{/each}}
+              </span>
+            </div>
 
             <hr />
-            <p style="padding: 10px;">{{{ this.contents }}}</p>
+            
+            {{ #if this.metadata.description }}
+            <p style="padding: 10px;">{{{ this.metadata.description }}}</p>
+            {{ else }}
+            <p style="font-style: italic;">No description set.</p>
+            {{/if}}
+          </div>
+
+          {{/each}}
         </div>
-        {{/each}}
-      </div>
     </div>
 
     {{> styles}}

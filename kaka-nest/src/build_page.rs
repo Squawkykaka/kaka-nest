@@ -37,6 +37,7 @@ pub(crate) struct BlogMetadata {
     pub published: bool,
     pub tags: Option<Vec<String>>,
     pub read_mins: u32,
+    pub description: Option<String>,
 }
 
 /// A struct containing all currently exisiting blogs & tags
@@ -196,6 +197,8 @@ fn render_blog(blog_path: PathBuf, blog_list: &mut BlogList) -> Result<()> {
                 .insert(blog_slug.clone());
         }
     }
+
+    dbg!(&blog);
 
     blog_list.blogs.push(blog);
 
