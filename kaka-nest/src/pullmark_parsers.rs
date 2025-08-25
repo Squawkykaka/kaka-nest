@@ -1,7 +1,7 @@
 use std::str::FromStr;
 
 use handlebars::RenderError;
-use pulldown_cmark::{CodeBlockKind, CowStr, Event, Parser, Tag, TagEnd};
+use pulldown_cmark::{CodeBlockKind, Event, Tag, TagEnd};
 use serde::Serialize;
 use syntastica::{Processor, renderer::HtmlRenderer};
 use syntastica_parsers::{Lang, LanguageSetImpl};
@@ -49,31 +49,27 @@ where
         type Item = Event<'a>;
 
         fn next(&mut self) -> Option<Self::Item> {
-            while let Some(event) = self.inner.next() {
+            for event in self.inner.by_ref() {
                 match event {
                     Event::Start(Tag::CodeBlock(CodeBlockKind::Fenced(lang))) => {
                         self.in_codeblock = true;
                         self.code_lang = Some(lang.to_string());
                         self.code_buffer.clear();
-                        continue;
                     }
                     Event::Text(text) if self.in_codeblock => {
                         self.code_buffer.push_str(&text);
-                        continue;
                     }
                     Event::End(TagEnd::CodeBlock) if self.in_codeblock => {
                         self.in_codeblock = false;
 
                         let highlighted_code = if let Some(lang) = self.code_lang.as_deref() {
                             if let Ok(syntax) = Lang::from_str(lang) {
-                                let processed =
-                                    match self.processer.process(&self.code_buffer, syntax).ok() {
-                                        Some(o) => o,
-                                        None => {
-                                            eprintln!("Highlighting code failed");
-                                            std::process::exit(0);
-                                        }
-                                    };
+                                let Some(processed) =
+                                    self.processer.process(&self.code_buffer, syntax).ok()
+                                else {
+                                    eprintln!("Highlighting code failed");
+                                    std::process::exit(0);
+                                };
 
                                 let highlighted = syntastica::render(
                                     &processed,
@@ -82,15 +78,17 @@ where
                                 );
 
                                 // If Handlebar render is expensive, consider a simple format! here instead.
-                                format_codeblock_html(&highlighted, Some(lang)).unwrap()
+                                format_codeblock_html(&highlighted, Some(lang)).ok()
                             } else {
-                                format_codeblock_html(&self.code_buffer.to_string(), None).unwrap()
+                                format_codeblock_html(&self.code_buffer.to_string(), None).ok()
                             }
                         } else {
-                            format_codeblock_html(&self.code_buffer, None).unwrap()
+                            format_codeblock_html(&self.code_buffer, None).ok()
                         };
 
-                        return Some(Event::Html(highlighted_code.into()));
+                        return Some(Event::Html(
+                            highlighted_code.expect("failed to highlight code").into(),
+                        ));
                     }
                     other => return Some(other),
                 }
@@ -128,17 +126,15 @@ pub(crate) fn format_blockquotes<'a>(
         type Item = Event<'a>;
 
         fn next(&mut self) -> Option<Self::Item> {
-            while let Some(event) = self.inner.next() {
+            for event in self.inner.by_ref() {
                 match event {
                     Event::Start(Tag::BlockQuote(_)) => {
                         self.in_blockquote = true;
                         self.blockquote_buffer.clear();
-                        continue;
                     }
                     Event::Text(text) if self.in_blockquote => {
                         self.blockquote_buffer.push_str(&text);
                         self.blockquote_buffer.push('\n'); // preserve line breaks
-                        continue;
                     }
                     Event::End(TagEnd::BlockQuote(_)) if self.in_blockquote => {
                         self.in_blockquote = false;
@@ -162,10 +158,8 @@ pub(crate) fn format_blockquotes<'a>(
                                 )
                                 .expect("Failed to render blockquote");
                             return Some(Event::Html(rendered_contents.into()));
-                        } else {
-                            debug!("You forgot to add a type to blockquote");
-                            continue;
-                        };
+                        }
+                        debug!("You forgot to add a type to blockquote");
                     }
                     _ => return Some(event),
                 }
@@ -181,7 +175,7 @@ pub(crate) fn format_blockquotes<'a>(
     }
 }
 
-fn parse_marker(input: &String) -> Option<(String, String)> {
+fn parse_marker(input: &str) -> Option<(String, String)> {
     let mut lines = input.lines();
 
     // Expect: line 1 == "[", line 2 starts with "!", line 3 == "]"
@@ -220,13 +214,13 @@ mod tests {
 
     use crate::{
         TL_PROCESSOR,
-        pullmark_parsers::{format_codeblock_html, highlight_codeblocks, parse_marker},
+        pullmark_parsers::{highlight_codeblocks, parse_marker},
     };
 
     #[test]
     fn test_parser_marker() {
         assert_eq!(
-            parse_marker(&"[\n!test\n]\nThis is super neat\n".to_string()),
+            parse_marker("[\n!test\n]\nThis is super neat\n"),
             Some(("test".to_string(), "This is super neat".to_string()))
         );
     }
@@ -258,7 +252,7 @@ fn bob() {
             html_output
         });
 
-        assert_eq!(html_output, test_output)
+        assert_eq!(html_output, test_output);
     }
 
     #[test]
@@ -288,6 +282,6 @@ fn bob() {
             html_output
         });
 
-        assert_eq!(html_output, test_output)
+        assert_eq!(html_output, test_output);
     }
 }

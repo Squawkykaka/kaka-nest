@@ -12,8 +12,7 @@ pub(crate) fn get_blog_paths() -> Result<Vec<PathBuf>> {
         .filter(|file| {
             file.extension()
                 .and_then(|ext| ext.to_str())
-                .map(|ext| ext == "md")
-                .unwrap_or(false)
+                .is_some_and(|ext| ext == "md")
         })
         .collect();
     Ok(files)

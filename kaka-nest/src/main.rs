@@ -1,4 +1,4 @@
-#![allow(clippy::pedantic)]
+#![warn(clippy::pedantic)]
 
 use std::sync::LazyLock;
 
@@ -11,7 +11,7 @@ use tracing::info;
 use crate::build_page::create_blogs_on_system;
 
 mod build_page;
-mod discover;
+// mod discover;
 mod pullmark_parsers;
 mod util;
 
@@ -81,7 +81,7 @@ fn main() -> color_eyre::eyre::Result<()> {
 
         Commands::Build
     }) {
-        Commands::Build {} => {
+        Commands::Build => {
             create_blogs_on_system()?;
         }
     }

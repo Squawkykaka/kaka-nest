@@ -1,21 +1,21 @@
 use std::{
     collections::{HashMap, HashSet},
-    fs::{self, FileType},
+    fs::{self},
     path::{Path, PathBuf},
 };
 
 use color_eyre::eyre::Result;
 use lol_html::{HtmlRewriter, Settings, element};
 use pulldown_cmark::{Options, Parser};
-use rss::{Category, ChannelBuilder, Item, ItemBuilder, extension::Extension};
+use rss::{Category, ChannelBuilder, ItemBuilder};
 use serde::{Deserialize, Serialize};
-use serde_json::{error, json};
+use serde_json::json;
 use tracing::{Level, debug, info, span, trace};
 
 use crate::{
     HANDLEBARS, TL_PROCESSOR, build_page,
     pullmark_parsers::{format_blockquotes, highlight_codeblocks},
-    util::{get_blog_paths, visit_dir},
+    util::get_blog_paths,
 };
 
 #[derive(Debug, Serialize)]
@@ -35,7 +35,9 @@ impl Blog {
         let mut rewriter = HtmlRewriter::new(
             Settings {
                 element_content_handlers: vec![element!("img[src]", |el| {
-                    let binding = el.get_attribute("src").unwrap();
+                    let binding = el
+                        .get_attribute("src")
+                        .expect("Failed to get src attribute, this shoudlnt happen");
                     let img_name = binding.as_str();
 
                     if let Some(src) = el.get_attribute("src") {
@@ -48,7 +50,7 @@ impl Blog {
                             || src.starts_with("//");
 
                         if !is_absolute {
-                            let new_src = format!("/images/{}", img_name);
+                            let new_src = format!("/images/{img_name}");
 
                             el.set_attribute("src", &new_src)?;
                         }
@@ -109,9 +111,11 @@ pub(crate) fn create_blogs_on_system() -> color_eyre::eyre::Result<()> {
                         // dbg!(image);
                         debug!(file = %image.path().display(), "copying image");
                         let ostr_filename = image.file_name();
-                        let image_name = ostr_filename.to_str().unwrap();
+                        let image_name = ostr_filename
+                            .to_str()
+                            .expect("Failed to convert OsStr to string");
 
-                        fs::copy(image.path(), format!("./output/images/{}", image_name))?;
+                        fs::copy(image.path(), format!("./output/images/{image_name}"))?;
                     }
                 }
                 Err(e) => {
@@ -172,27 +176,24 @@ fn output_rss_to_fs(blogs: &BlogList) -> Result<()> {
         let catagories = {
             let mut catagories = vec![];
 
-            match post.metadata.tags.clone() {
-                Some(tags) => {
-                    for tag in tags {
-                        debug!(tag = tag, "new catagory");
-                        catagories.push(Category {
-                            name: tag,
-                            domain: None,
-                        });
-                    }
-
-                    catagories
-                }
-                None => {
-                    debug!("No catagorys found");
+            if let Some(tags) = post.metadata.tags.clone() {
+                for tag in tags {
+                    debug!(tag = tag, "new catagory");
                     catagories.push(Category {
-                        name: "no_catagory".into(),
+                        name: tag,
                         domain: None,
                     });
-
-                    catagories
                 }
+
+                catagories
+            } else {
+                debug!("No catagorys found");
+                catagories.push(Category {
+                    name: "no_catagory".into(),
+                    domain: None,
+                });
+
+                catagories
             }
         };
 
@@ -211,7 +212,7 @@ fn output_rss_to_fs(blogs: &BlogList) -> Result<()> {
     }
 
     debug!("writing rss to fs");
-    fs::write(format!("./output/index.xml",), channel.to_string())?;
+    fs::write("./output/index.xml", channel.to_string())?;
 
     Ok(())
     // todo!()
@@ -247,7 +248,7 @@ fn output_tags_to_fs(blogs: &BlogList) -> Result<()> {
         };
 
         debug!("writing to fs");
-        fs::write(format!("./output/tags/{}.html", stripped_tag), contents)?;
+        fs::write(format!("./output/tags/{stripped_tag}.html"), contents)?;
     }
 
     Ok(())
@@ -274,29 +275,28 @@ pub fn get_blogs() -> Result<BlogList> {
     let blog_paths = get_blog_paths()?;
 
     for blog_path in blog_paths {
-        render_blog(blog_path, &mut blog_list)?;
+        render_blog(&blog_path, &mut blog_list)?;
     }
 
     Ok(blog_list)
 }
 
-fn render_blog(blog_path: PathBuf, blog_list: &mut BlogList) -> Result<()> {
+fn render_blog(blog_path: &PathBuf, blog_list: &mut BlogList) -> Result<()> {
     let span = span!(Level::DEBUG, "render post", post = %blog_path.as_path().display());
     let _enter = span.enter();
 
     trace!("reading post from fs");
-    let blog_bytes = fs::read(&blog_path)?;
+    let blog_bytes = fs::read(blog_path)?;
     let blog_contents = std::str::from_utf8(&blog_bytes)?;
 
     // Generate HTML
-    let html_output = render_html_page_from_markdown(&blog_contents);
+    let html_output = render_html_page_from_markdown(blog_contents);
 
     // get metadata options
     let blog_metadata = {
         debug!("extracting metadata from file");
-        let blog_metadata_string = match blog_contents.split("---").nth(1) {
-            Some(blog_metadata) => blog_metadata,
-            None => return Err(color_eyre::eyre::eyre!("Didnt include metadata for file")),
+        let Some(blog_metadata_string) = blog_contents.split("---").nth(1) else {
+            return Err(color_eyre::eyre::eyre!("Didnt include metadata for file"));
         };
 
         let mut blog_metadata: BlogMetadata = serde_yaml::from_str(blog_metadata_string)?;
@@ -323,7 +323,7 @@ fn render_blog(blog_path: PathBuf, blog_list: &mut BlogList) -> Result<()> {
         .strip_suffix(".md")
         .expect("Path should have .md extension when making blog title");
 
-    let blog_slug = blog_title.replace(" ", "-").to_ascii_lowercase();
+    let blog_slug = blog_title.replace(' ', "-").to_ascii_lowercase();
 
     let blog = Blog {
         title: String::from(blog_title),
