@@ -28,7 +28,7 @@
 
         toolchain = pkgs.rust-bin.selectLatestNightlyWith (toolchain:
           toolchain.default.override {
-            extensions = ["rust-src"];
+            extensions = ["rust-src" "rustc-codegen-cranelift-preview"];
           });
         naersk' = pkgs.callPackage naersk {
           cargo = toolchain;

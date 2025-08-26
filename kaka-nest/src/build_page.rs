@@ -2,9 +2,14 @@ use std::{
     collections::{HashMap, HashSet},
     fs::{self},
     path::{Path, PathBuf},
+    thread,
 };
 
 use color_eyre::eyre::OptionExt;
+use fs_extra::{
+    copy_items,
+    dir::{self, CopyOptions},
+};
 use lol_html::{HtmlRewriter, Settings, element};
 use pulldown_cmark::{Options, Parser};
 use rss::{Category, ChannelBuilder, ItemBuilder};
@@ -102,11 +107,7 @@ fn build_blog_from_path(path: &Path) -> Result<Blog, Box<dyn std::error::Error>>
 }
 
 fn generate_title_from_path(path: &Path) -> Option<&str> {
-    let extension = path.extension()?.to_str()?;
-
-    let image_name = path.file_name()?.to_str()?;
-
-    let file_name = image_name.strip_suffix(extension)?;
+    let file_name = path.file_stem()?.to_str()?;
 
     Some(file_name)
 }
@@ -175,6 +176,11 @@ fn build_blog_list(blog_paths: &[PathBuf]) -> Result<BlogList, Box<dyn std::erro
                     .insert(blog.slug.clone());
             }
         }
+
+        if !blog.metadata.published {
+            continue;
+        }
+
         blog_list.blogs.push(blog);
     }
 
@@ -193,43 +199,40 @@ pub fn create_blogs_on_system() -> Result<(), Box<dyn std::error::Error>> {
     let blog_paths = get_blog_paths()?;
     let posts = build_blog_list(&blog_paths)?;
 
-    // Replace silent error swallowing
     trace!("Deleting output directory");
     if Path::new("./output").exists() {
         fs::remove_dir_all("./output")?;
     }
+    // Create the base output directory first, as threads will try to write to it.
+    fs::create_dir("./output")?;
 
-    // Copy static files
-    info!("Copying static files");
-    copy_dir::copy_dir("./assets/static", "./output")?;
+    // --- Start of Copying ---
+    info!("Copying static files and images");
+    let static_src = "./assets/static";
+    let images_src = "./assets/blog/images";
+    let static_dest = "./output";
+    let images_dest = "./output/images";
 
-    // Copy blog images
-    {
-        let span = span!(Level::INFO, "copy blog images");
-        let _enter = span.enter();
+    // -- Copy Static Files --
+    let mut options = CopyOptions::new();
+    options.overwrite = true;
+    let paths_to_copy: Vec<_> = fs::read_dir(static_src)?
+        .filter_map(Result::ok) // Ignore any read errors for individual entries
+        .map(|entry| entry.path())
+        .collect();
+    copy_items(&paths_to_copy, static_dest, &options)?;
 
-        for image in fs::read_dir("./assets/blog/images")? {
-            match image {
-                Ok(image) => {
-                    if image.file_type()?.is_file() {
-                        // dbg!(image);
-                        debug!(file = %image.path().display(), "copying image");
-                        let ostr_filename = image.file_name();
-                        let image_name = ostr_filename
-                            .to_str()
-                            .ok_or_eyre("Failed to convert OsStr to filename")?;
+    // -- Copy image files --
+    fs::create_dir_all(images_dest)?;
+    let mut options = CopyOptions::new();
+    options.overwrite = true;
+    dir::copy(images_src, images_dest, &options)?;
+    info!("Finished copying blog images");
 
-                        fs::copy(image.path(), format!("./output/images/{image_name}"))?;
-                    }
-                }
-                Err(e) => {
-                    tracing::error!(?e);
-                }
-            }
-        }
-    }
+    // --- End of Copying ---
+    info!("All file copying complete.");
 
-    // make output dirs
+    // Create remaining output directories
     fs::create_dir_all("./output/posts")?;
     fs::create_dir_all("./output/tags")?;
 
@@ -239,10 +242,6 @@ pub fn create_blogs_on_system() -> Result<(), Box<dyn std::error::Error>> {
         let _enter = span.enter();
 
         for blog in &posts.blogs {
-            if !blog.metadata.published {
-                continue;
-            }
-
             let span = tracing::span!(Level::INFO, "render blog", blog = blog.title);
             let _enter = span.enter();
 
