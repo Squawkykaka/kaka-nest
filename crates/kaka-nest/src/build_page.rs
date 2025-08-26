@@ -4,10 +4,7 @@ use std::{
     path::{Path, PathBuf},
 };
 
-use fs_extra::{
-    copy_items,
-    dir::{self, CopyOptions},
-};
+use fs_extra::{copy_items, dir::CopyOptions};
 use lol_html::{HtmlRewriter, Settings, element};
 use pulldown_cmark::{Options, Parser};
 use pullmark_parsers::{TL_PROCESSOR, format_blockquotes, highlight_codeblocks};
@@ -220,9 +217,11 @@ pub fn create_blog_on_system() -> Result<(), Box<dyn std::error::Error>> {
 
     // -- Copy image files --
     fs::create_dir_all(images_dest)?;
-    let mut options = CopyOptions::new();
-    options.overwrite = true;
-    dir::copy(images_src, images_dest, &options)?;
+    let paths_to_copy: Vec<_> = fs::read_dir(images_src)?
+        .filter_map(Result::ok) // Ignore any read errors for individual entries
+        .map(|entry| entry.path())
+        .collect();
+    copy_items(&paths_to_copy, images_dest, &options)?;
     info!("Finished copying blog images");
 
     // --- End of Copying ---

@@ -403,6 +403,7 @@ Wow... that's a lot of options that suddenly appeared, lets look through this. i
 Scrolling down a bit further we see options for metadata servers which we can mostly ignore, since the defaults should mostly be good enough for our usecase. Near the bottom of the options are a few checkboxes, one of them being `Save artwork into media folders`. I’ll turn this on as the default option is to just dump the artwork right next to where the media downloaded. You can choose to enable any of the other options, but im not going to.
 
 Hit that OK button!
+
 ![[whoops forgot the folders.png]]
 
 > Hah you forgot something.
@@ -442,13 +443,15 @@ Im with you there, nothing crazy for these settings
 These options are perfect on defaults, since you probably don't want other people to access your server remotely with an unsecured connection. If that is your goal, look into reverse proxies like [caddy](https://caddyserver.com/) to secure your connection.
 
 ![[finished setup jellyfin.png]]
-_Woo were done!_
+
+_Woo we are done!_
 
 Nice and simple, time to finish this off and watch some movies!
 
 ---
 
 ![[jellyfin login page.png]]
+
 _Hope you didnt forget your login._
 
 Wait!
@@ -504,4 +507,5 @@ Head to the dashboard page, there should be a button near the top named `Scan Al
 Most definitally, lets click on it and give it a watch.
 
 ![[movie playing jellyfin.png]]
+
 And it runs!
