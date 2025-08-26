@@ -18,8 +18,6 @@ I'm making my own blog system, which allows me to write my posts in [Obsidian](h
 
 ## Shiny
 
-- [ ] replace handlebars with tera, and improve the templating
-  - [ ] add helper functions
 - [ ] improve error handling
   - [ ] add warning for invalid posts, and languages without tree-sitter parsers
 - [x] A theme to my website, making it look better than just html
@@ -28,10 +26,10 @@ I'm making my own blog system, which allows me to write my posts in [Obsidian](h
 - [x] tags list, where you can see what posts have what tags
 - [x] A server where it uploads to something like cloudflare pages so people can view my site.
 - [x] A tagging system, so people can find posts based on tags.
+- [x] Use a better font, like [Iosevka](https://github.com/be5invis/Iosevka)
 - [ ] A searching system, using wasm
 - [ ] Live reloading the websites html, whenever changes happen
 - [ ] Add a way to generate a new post easily, and admin options when inside the website.
-- [x] Use a better font, like [Iosevka](https://github.com/be5invis/Iosevka)
 - [ ] theme mini codeblocks with a nice border
 - [ ] add a config file, so other people can use easily.
 - [ ] improve how i add modifications as the current implementation is quite bad

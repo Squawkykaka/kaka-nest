@@ -23,16 +23,18 @@ struct CodeBlock {
     contents: String,
 }
 
-#[derive(Serialize)]
+#[derive(Serialize, Default)]
 #[serde(rename_all = "lowercase")]
-enum BlockquoteTypes {
+enum BlockquoteType {
     Question,
+    #[default]
+    Normal,
     // Aha,
 }
 
 #[derive(Serialize)]
 struct BlockQuote<'a> {
-    blockquote_type: Option<BlockquoteTypes>,
+    blockquote_type: BlockquoteType,
     contents: &'a str,
 }
 
@@ -146,28 +148,33 @@ pub fn format_blockquotes<'a>(
                     Event::End(TagEnd::BlockQuote(_)) if self.in_blockquote => {
                         self.in_blockquote = false;
 
-                        if let Some((blockquote_string, rest)) =
+                        let (blockquote_type, contents) = if let Some((blockquote_string, rest)) =
                             parse_marker(&self.blockquote_buffer)
                         {
                             let blockquote_type = match blockquote_string.as_str() {
-                                "question" => Some(BlockquoteTypes::Question),
+                                "question" => BlockquoteType::Question,
                                 // Add more types as needed
-                                _ => None,
+                                _ => BlockquoteType::Normal,
                             };
+                            (blockquote_type, rest)
+                        } else {
+                            // If no marker detected, treat entire buffer as normal blockquote content
+                            (BlockquoteType::Normal, self.blockquote_buffer.clone())
+                        };
 
-                            let rendered_contents = HANDLEBARS
-                                .render(
-                                    "blockquote",
-                                    &BlockQuote {
-                                        blockquote_type,
-                                        contents: &rest,
-                                    },
-                                )
-                                .expect("Failed to render blockquote");
-                            return Some(Event::Html(rendered_contents.into()));
-                        }
-                        debug!("You forgot to add a type to blockquote");
+                        let rendered_contents = HANDLEBARS
+                            .render(
+                                "blockquote",
+                                &BlockQuote {
+                                    blockquote_type,
+                                    contents: &contents,
+                                },
+                            )
+                            .expect("Failed to render blockquote");
+
+                        return Some(Event::Html(rendered_contents.into()));
                     }
+
                     _ => return Some(event),
                 }
             }
