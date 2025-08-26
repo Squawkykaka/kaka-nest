@@ -1,3 +1,4 @@
+#![warn(clippy::pedantic)]
 use std::{str::FromStr, sync::LazyLock};
 
 use handlebars::RenderError;
@@ -10,7 +11,6 @@ use tracing::debug;
 
 pub static LEAKED_LANGSET: LazyLock<&'static LanguageSetImpl> =
     LazyLock::new(|| Box::leak(Box::new(LanguageSetImpl::new())));
-// }
 
 thread_local! {
     pub static TL_PROCESSOR: std::cell::RefCell<Processor<'static, LanguageSetImpl>> =

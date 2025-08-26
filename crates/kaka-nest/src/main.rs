@@ -3,7 +3,6 @@
 use clap::{Parser, Subcommand};
 use kaka_nest::build_page::create_blog_on_system;
 use server_view::start_file_server;
-use tracing::info;
 
 #[derive(Parser, Debug)]
 struct Cli {

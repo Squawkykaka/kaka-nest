@@ -1,6 +1,9 @@
+#![warn(clippy::pedantic)]
+
 use actix_files as fs;
 use actix_web::{App, HttpServer};
 
+#[allow(clippy::missing_errors_doc)]
 pub async fn start_file_server() -> Result<(), std::io::Error> {
     HttpServer::new(|| {
         App::new().service(fs::Files::new("/", "./output").index_file("index.html"))
