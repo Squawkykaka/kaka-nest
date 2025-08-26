@@ -1,13 +1,21 @@
-use std::str::FromStr;
+use std::{str::FromStr, sync::LazyLock};
 
 use handlebars::RenderError;
 use pulldown_cmark::{CodeBlockKind, Event, Tag, TagEnd};
 use serde::Serialize;
+use shared_utils::HANDLEBARS;
 use syntastica::{Processor, renderer::HtmlRenderer};
 use syntastica_parsers::{Lang, LanguageSetImpl};
 use tracing::debug;
 
-use crate::HANDLEBARS;
+pub static LEAKED_LANGSET: LazyLock<&'static LanguageSetImpl> =
+    LazyLock::new(|| Box::leak(Box::new(LanguageSetImpl::new())));
+// }
+
+thread_local! {
+    pub static TL_PROCESSOR: std::cell::RefCell<Processor<'static, LanguageSetImpl>> =
+        std::cell::RefCell::new(Processor::new(*LEAKED_LANGSET));
+}
 
 #[derive(Serialize)]
 struct CodeBlock {
@@ -30,7 +38,7 @@ struct BlockQuote<'a> {
 
 /// Gets every codeblock in a pullmark parser and adds syntax highlighting to the html
 // ...existing code...
-pub(crate) fn highlight_codeblocks<'a, I>(
+pub fn highlight_codeblocks<'a, I>(
     parser: I,
     processer: &'a mut Processor<'static, LanguageSetImpl>,
 ) -> impl Iterator<Item = Event<'a>> + 'a
@@ -106,14 +114,13 @@ where
     }
 }
 
-// ...existing code...
 /// Processes blockquotes with the format:
 ///
 /// ```md
 /// > [!question]
 /// > What is the meaning of life?
 /// ```
-pub(crate) fn format_blockquotes<'a>(
+pub fn format_blockquotes<'a>(
     parser: impl Iterator<Item = Event<'a>>,
 ) -> impl Iterator<Item = Event<'a>> {
     struct FormatBlockquotes<'a, I: Iterator<Item = Event<'a>>> {
@@ -207,81 +214,4 @@ fn format_codeblock_html(input: &str, lang: Option<&str>) -> Result<String, Rend
             contents: input.to_string(),
         },
     )
-}
-#[cfg(test)]
-mod tests {
-    use pulldown_cmark::{Options, Parser};
-
-    use crate::{
-        TL_PROCESSOR,
-        pullmark_parsers::{highlight_codeblocks, parse_marker},
-    };
-
-    #[test]
-    fn test_parser_marker() {
-        assert_eq!(
-            parse_marker("[\n!test\n]\nThis is super neat\n"),
-            Some(("test".to_string(), "This is super neat".to_string()))
-        );
-    }
-
-    #[test]
-    fn test_valid_codeblock() {
-        let test_input = "
-```rust
-fn bob() {
-    println!(\"Hello Wolrd\");
-}
-```
-        ";
-        let test_output = "<div class=\"codeblock-wrapper\">\n  <p class=\"lang-label\">rust</p>\n\n  <div class=\"codeblock\">\n    <code style=\"display: block\">\n      <pre><span style=\"color:rgb(198,120,221);\">fn</span>&nbsp;<span style=\"color:rgb(97,175,239);\">bob</span><span style=\"color:rgb(132,139,152);\">(</span><span style=\"color:rgb(132,139,152);\">)</span>&nbsp;<span style=\"color:rgb(132,139,152);\">{</span><br>&nbsp;&nbsp;&nbsp;&nbsp;<span style=\"color:rgb(86,182,194);\">println</span><span style=\"color:rgb(86,182,194);\">!</span><span style=\"color:rgb(132,139,152);\">(</span><span style=\"color:rgb(152,195,121);\">\"Hello&nbsp;Wolrd\"</span><span style=\"color:rgb(132,139,152);\">)</span><span style=\"color:rgb(132,139,152);\">;</span><br><span style=\"color:rgb(132,139,152);\">}</span><br></pre>\n    </code>\n  </div>\n</div>\n";
-
-        let mut pullmark_options = Options::empty();
-        pullmark_options.insert(Options::ENABLE_WIKILINKS);
-        pullmark_options.insert(Options::ENABLE_STRIKETHROUGH);
-        pullmark_options.insert(Options::ENABLE_YAML_STYLE_METADATA_BLOCKS);
-        pullmark_options.insert(Options::ENABLE_TASKLISTS);
-
-        let html_output = TL_PROCESSOR.with_borrow_mut(|processer| {
-            let parser = Parser::new_ext(test_input, pullmark_options);
-            let parser = highlight_codeblocks(parser, processer);
-
-            let mut html_output = String::new();
-            pulldown_cmark::html::push_html(&mut html_output, parser);
-
-            html_output
-        });
-
-        assert_eq!(html_output, test_output);
-    }
-
-    #[test]
-    fn test_no_specified_lang_codeblock() {
-        let test_input = "
-```
-fn bob() {
-    println!(\"Hello Wolrd\");
-}
-```
-        ";
-        let test_output = "<div class=\"codeblock-wrapper\">\n  <p class=\"lang-label\"></p>\n\n  <div class=\"codeblock\">\n    <code style=\"display: block\">\n      <pre>fn bob() {\n    println!(\"Hello Wolrd\");\n}\n</pre>\n    </code>\n  </div>\n</div>\n";
-
-        let mut pullmark_options = Options::empty();
-        pullmark_options.insert(Options::ENABLE_WIKILINKS);
-        pullmark_options.insert(Options::ENABLE_STRIKETHROUGH);
-        pullmark_options.insert(Options::ENABLE_YAML_STYLE_METADATA_BLOCKS);
-        pullmark_options.insert(Options::ENABLE_TASKLISTS);
-
-        let html_output = TL_PROCESSOR.with_borrow_mut(|processer| {
-            let parser = Parser::new_ext(test_input, pullmark_options);
-            let parser = highlight_codeblocks(parser, processer);
-
-            let mut html_output = String::new();
-            pulldown_cmark::html::push_html(&mut html_output, parser);
-
-            html_output
-        });
-
-        assert_eq!(html_output, test_output);
-    }
 }

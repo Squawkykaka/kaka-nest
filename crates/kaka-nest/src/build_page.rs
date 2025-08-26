@@ -2,36 +2,32 @@ use std::{
     collections::{HashMap, HashSet},
     fs::{self},
     path::{Path, PathBuf},
-    thread,
 };
 
-use color_eyre::eyre::OptionExt;
 use fs_extra::{
     copy_items,
     dir::{self, CopyOptions},
 };
 use lol_html::{HtmlRewriter, Settings, element};
 use pulldown_cmark::{Options, Parser};
+use pullmark_parsers::{TL_PROCESSOR, format_blockquotes, highlight_codeblocks};
 use rss::{Category, ChannelBuilder, ItemBuilder};
 use serde::{Deserialize, Serialize};
 use serde_json::json;
+use shared_utils::HANDLEBARS;
 use slugify::slugify;
 use tracing::{Level, debug, info, span, trace};
 
-use crate::{
-    HANDLEBARS, TL_PROCESSOR,
-    pullmark_parsers::{format_blockquotes, highlight_codeblocks},
-    util::get_blog_paths,
-};
+use crate::util::get_blog_paths;
 
 #[derive(Debug, Serialize)]
-pub struct Blog {
+pub struct Post {
     pub title: String,
     pub slug: String,
-    pub metadata: BlogMetadata,
+    pub metadata: PostMetadata,
     pub contents: String,
 }
-impl Blog {
+impl Post {
     pub(crate) fn to_rendered_html(&self) -> Result<String, Box<dyn std::error::Error>> {
         let rendered_string = HANDLEBARS.render("blog", self)?;
 
@@ -77,7 +73,7 @@ impl Blog {
 }
 
 #[derive(Serialize, Deserialize, Debug)]
-pub struct BlogMetadata {
+pub struct PostMetadata {
     pub date: String,
     pub published: bool,
     pub tags: Option<Vec<String>>,
@@ -87,18 +83,18 @@ pub struct BlogMetadata {
 
 /// A struct containing all currently exisiting blogs & tags
 #[derive(Default, Debug)]
-pub struct BlogList {
-    pub blogs: Vec<Blog>,
+pub struct PostList {
+    pub blogs: Vec<Post>,
     pub tags: HashMap<String, HashSet<String>>,
 }
 
-fn build_blog_from_path(path: &Path) -> Result<Blog, Box<dyn std::error::Error>> {
+fn build_post_from_path(path: &Path) -> Result<Post, Box<dyn std::error::Error>> {
     let content = fs::read_to_string(path)?;
     let metadata = parse_front_matter(&content)?;
     let html = render_markdown_to_html(&content);
 
     let title = generate_title_from_path(path).ok_or("the file name is invalid")?;
-    Ok(Blog {
+    Ok(Post {
         title: title.into(), // or derive from metadata
         slug: slugify!(title),
         metadata,
@@ -141,14 +137,14 @@ fn render_markdown_to_html(content: &str) -> String {
     html_output
 }
 
-fn parse_front_matter(content: &str) -> Result<BlogMetadata, Box<dyn std::error::Error>> {
+fn parse_front_matter(content: &str) -> Result<PostMetadata, Box<dyn std::error::Error>> {
     debug!("extracting metadata from file");
 
     let Some(blog_metadata_string) = content.split("---").nth(1) else {
         return Err("Didnt include metadata for file".into());
     };
 
-    let mut blog_metadata: BlogMetadata = serde_yaml::from_str(blog_metadata_string)?;
+    let mut blog_metadata: PostMetadata = serde_yaml::from_str(blog_metadata_string)?;
 
     // Remove '#' prefix from each tag if present
     if let Some(tags) = &mut blog_metadata.tags {
@@ -162,11 +158,11 @@ fn parse_front_matter(content: &str) -> Result<BlogMetadata, Box<dyn std::error:
     Ok(blog_metadata)
 }
 
-fn build_blog_list(blog_paths: &[PathBuf]) -> Result<BlogList, Box<dyn std::error::Error>> {
-    let mut blog_list = BlogList::default();
+fn build_blog_list(blog_paths: &[PathBuf]) -> Result<PostList, Box<dyn std::error::Error>> {
+    let mut blog_list = PostList::default();
 
     for path in blog_paths {
-        let blog = build_blog_from_path(path)?;
+        let blog = build_post_from_path(path)?;
         if let Some(tags) = &blog.metadata.tags {
             for tag in tags {
                 blog_list
@@ -195,7 +191,7 @@ fn build_blog_list(blog_paths: &[PathBuf]) -> Result<BlogList, Box<dyn std::erro
 /// - Copying assets
 /// - Converting `OsStr` to string
 /// - Reading input dir
-pub fn create_blogs_on_system() -> Result<(), Box<dyn std::error::Error>> {
+pub fn create_blog_on_system() -> Result<(), Box<dyn std::error::Error>> {
     let blog_paths = get_blog_paths()?;
     let posts = build_blog_list(&blog_paths)?;
 
@@ -260,7 +256,7 @@ pub fn create_blogs_on_system() -> Result<(), Box<dyn std::error::Error>> {
     Ok(())
 }
 
-fn output_rss_to_fs(blogs: &BlogList) -> Result<(), Box<dyn std::error::Error>> {
+fn output_rss_to_fs(blogs: &PostList) -> Result<(), Box<dyn std::error::Error>> {
     let span = span!(Level::INFO, "output rss");
     let _enter = span.enter();
 
@@ -321,7 +317,7 @@ fn output_rss_to_fs(blogs: &BlogList) -> Result<(), Box<dyn std::error::Error>> 
     // todo!()
 }
 
-fn output_tags_to_fs(blogs: &BlogList) -> Result<(), Box<dyn std::error::Error>> {
+fn output_tags_to_fs(blogs: &PostList) -> Result<(), Box<dyn std::error::Error>> {
     let span = span!(Level::DEBUG, "output tags");
     let _enter = span.enter();
 
@@ -357,7 +353,7 @@ fn output_tags_to_fs(blogs: &BlogList) -> Result<(), Box<dyn std::error::Error>>
     Ok(())
 }
 
-fn output_homepage_to_fs(blogs: &BlogList) -> Result<(), Box<dyn std::error::Error>> {
+fn output_homepage_to_fs(blogs: &PostList) -> Result<(), Box<dyn std::error::Error>> {
     let span = span!(Level::DEBUG, "output homepage");
     let _enter = span.enter();
     info!("outputting homepage");

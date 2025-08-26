@@ -1,7 +1,7 @@
 #![warn(clippy::pedantic)]
 
 use clap::{Parser, Subcommand};
-use kaka_nest::build_page::create_blogs_on_system;
+use kaka_nest::build_page::create_blog_on_system;
 use tracing::info;
 
 #[derive(Parser, Debug)]
@@ -30,7 +30,7 @@ fn main() -> color_eyre::eyre::Result<()> {
         Commands::Build
     }) {
         Commands::Build => {
-            create_blogs_on_system().unwrap();
+            create_blog_on_system().unwrap();
         }
     }
 

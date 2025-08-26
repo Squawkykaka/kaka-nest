@@ -1,0 +1,14 @@
+[package]
+name = "pullmark_parsers"
+version = "0.1.0"
+edition = "2024"
+
+[dependencies]
+tracing.workspace = true
+syntastica = "0.6.1"
+syntastica-parsers = { version = "0.6.1", features = ["some"] }
+syntastica-themes = "0.6.1"
+serde.workspace = true
+pulldown-cmark.workspace = true
+handlebars.workspace = true
+shared_utils = { path = "../shared_utils" }

@@ -1,15 +1,7 @@
-#![warn(clippy::pedantic)]
+use std::sync::LazyLock;
 
 use handlebars::Handlebars;
-use std::sync::LazyLock;
-use syntastica::Processor;
-use syntastica_parsers::LanguageSetImpl;
 
-pub mod build_page;
-pub mod pullmark_parsers;
-pub mod util;
-
-// lazy_static! {
 pub static HANDLEBARS: LazyLock<Handlebars<'static>> = LazyLock::new(|| {
     let mut handlebars = handlebars::Handlebars::new();
 
@@ -40,12 +32,3 @@ pub static HANDLEBARS: LazyLock<Handlebars<'static>> = LazyLock::new(|| {
 
     handlebars
 });
-
-pub static LEAKED_LANGSET: LazyLock<&'static LanguageSetImpl> =
-    LazyLock::new(|| Box::leak(Box::new(LanguageSetImpl::new())));
-// }
-
-thread_local! {
-    pub static TL_PROCESSOR: std::cell::RefCell<Processor<'static, LanguageSetImpl>> =
-        std::cell::RefCell::new(Processor::new(*LEAKED_LANGSET));
-}
