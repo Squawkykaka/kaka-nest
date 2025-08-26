@@ -30,7 +30,7 @@ fn main() -> color_eyre::eyre::Result<()> {
         Commands::Build
     }) {
         Commands::Build => {
-            create_blogs_on_system()?;
+            create_blogs_on_system().unwrap();
         }
     }
 

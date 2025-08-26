@@ -4,16 +4,17 @@ use std::{
     path::{Path, PathBuf},
 };
 
-use color_eyre::eyre::{OptionExt, Result};
+use color_eyre::eyre::OptionExt;
 use lol_html::{HtmlRewriter, Settings, element};
 use pulldown_cmark::{Options, Parser};
 use rss::{Category, ChannelBuilder, ItemBuilder};
 use serde::{Deserialize, Serialize};
 use serde_json::json;
+use slugify::slugify;
 use tracing::{Level, debug, info, span, trace};
 
 use crate::{
-    HANDLEBARS, TL_PROCESSOR, build_page,
+    HANDLEBARS, TL_PROCESSOR,
     pullmark_parsers::{format_blockquotes, highlight_codeblocks},
     util::get_blog_paths,
 };
@@ -26,7 +27,7 @@ pub struct Blog {
     pub contents: String,
 }
 impl Blog {
-    pub(crate) fn to_rendered_html(&self) -> Result<String> {
+    pub(crate) fn to_rendered_html(&self) -> Result<String, Box<dyn std::error::Error>> {
         let rendered_string = HANDLEBARS.render("blog", self)?;
 
         // Replace local image links with /images/{{ image }}
@@ -86,6 +87,100 @@ pub struct BlogList {
     pub tags: HashMap<String, HashSet<String>>,
 }
 
+fn build_blog_from_path(path: &Path) -> Result<Blog, Box<dyn std::error::Error>> {
+    let content = fs::read_to_string(path)?;
+    let metadata = parse_front_matter(&content)?;
+    let html = render_markdown_to_html(&content);
+
+    let title = generate_title_from_path(path).ok_or("the file name is invalid")?;
+    Ok(Blog {
+        title: title.into(), // or derive from metadata
+        slug: slugify!(title),
+        metadata,
+        contents: html,
+    })
+}
+
+fn generate_title_from_path(path: &Path) -> Option<&str> {
+    let extension = path.extension()?.to_str()?;
+
+    let image_name = path.file_name()?.to_str()?;
+
+    let file_name = image_name.strip_suffix(extension)?;
+
+    Some(file_name)
+}
+
+fn render_markdown_to_html(content: &str) -> String {
+    let span = span!(Level::INFO, "pullmark parsing");
+    let _enter = span.enter();
+
+    let mut pullmark_options = Options::empty();
+    pullmark_options.insert(Options::ENABLE_WIKILINKS);
+    pullmark_options.insert(Options::ENABLE_STRIKETHROUGH);
+    pullmark_options.insert(Options::ENABLE_YAML_STYLE_METADATA_BLOCKS);
+    pullmark_options.insert(Options::ENABLE_TASKLISTS);
+    pullmark_options.insert(Options::ENABLE_TABLES);
+
+    let html_output = TL_PROCESSOR.with_borrow_mut(|processer| {
+        debug!("created parser");
+        let parser = Parser::new_ext(content, pullmark_options);
+        debug!("highlighting codeblocks");
+        let parser = highlight_codeblocks(parser, processer);
+        debug!("formatting blockquotes");
+        let parser = format_blockquotes(parser);
+
+        let mut html_output = String::new();
+        pulldown_cmark::html::push_html(&mut html_output, parser);
+
+        html_output
+    });
+
+    debug!("finished parsing into html");
+    html_output
+}
+
+fn parse_front_matter(content: &str) -> Result<BlogMetadata, Box<dyn std::error::Error>> {
+    debug!("extracting metadata from file");
+
+    let Some(blog_metadata_string) = content.split("---").nth(1) else {
+        return Err("Didnt include metadata for file".into());
+    };
+
+    let mut blog_metadata: BlogMetadata = serde_yaml::from_str(blog_metadata_string)?;
+
+    // Remove '#' prefix from each tag if present
+    if let Some(tags) = &mut blog_metadata.tags {
+        for tag in tags.iter_mut() {
+            if let Some(stripped) = tag.strip_prefix('#') {
+                *tag = stripped.to_string();
+            }
+        }
+    }
+
+    Ok(blog_metadata)
+}
+
+fn build_blog_list(blog_paths: &[PathBuf]) -> Result<BlogList, Box<dyn std::error::Error>> {
+    let mut blog_list = BlogList::default();
+
+    for path in blog_paths {
+        let blog = build_blog_from_path(path)?;
+        if let Some(tags) = &blog.metadata.tags {
+            for tag in tags {
+                blog_list
+                    .tags
+                    .entry(tag.clone())
+                    .or_default()
+                    .insert(blog.slug.clone());
+            }
+        }
+        blog_list.blogs.push(blog);
+    }
+
+    Ok(blog_list)
+}
+
 /// This function reads all input files from the operating systemm,
 /// builds the blogs and Copys the images and static assets to output directory
 ///
@@ -94,19 +189,9 @@ pub struct BlogList {
 /// - Copying assets
 /// - Converting `OsStr` to string
 /// - Reading input dir
-pub fn create_blogs_on_system() -> color_eyre::eyre::Result<()> {
-    let blogs: build_page::BlogList = {
-        let mut blog_list = BlogList::default();
-
-        info!("getting blogs");
-        let blog_paths = get_blog_paths()?;
-
-        for blog_path in blog_paths {
-            render_blog(&blog_path, &mut blog_list)?;
-        }
-
-        blog_list
-    };
+pub fn create_blogs_on_system() -> Result<(), Box<dyn std::error::Error>> {
+    let blog_paths = get_blog_paths()?;
+    let posts = build_blog_list(&blog_paths)?;
 
     // Replace silent error swallowing
     trace!("Deleting output directory");
@@ -153,7 +238,7 @@ pub fn create_blogs_on_system() -> color_eyre::eyre::Result<()> {
         let span = span!(Level::INFO, "output blogs");
         let _enter = span.enter();
 
-        for blog in &blogs.blogs {
+        for blog in &posts.blogs {
             if !blog.metadata.published {
                 continue;
             }
@@ -168,15 +253,15 @@ pub fn create_blogs_on_system() -> color_eyre::eyre::Result<()> {
             fs::write(format!("./output/posts/{}.html", blog.slug), blog_html)?;
         }
 
-        output_tags_to_fs(&blogs)?;
-        output_homepage_to_fs(&blogs)?;
-        output_rss_to_fs(&blogs)?;
+        output_tags_to_fs(&posts)?;
+        output_homepage_to_fs(&posts)?;
+        output_rss_to_fs(&posts)?;
     }
 
     Ok(())
 }
 
-fn output_rss_to_fs(blogs: &BlogList) -> Result<()> {
+fn output_rss_to_fs(blogs: &BlogList) -> Result<(), Box<dyn std::error::Error>> {
     let span = span!(Level::INFO, "output rss");
     let _enter = span.enter();
 
@@ -237,7 +322,7 @@ fn output_rss_to_fs(blogs: &BlogList) -> Result<()> {
     // todo!()
 }
 
-fn output_tags_to_fs(blogs: &BlogList) -> Result<()> {
+fn output_tags_to_fs(blogs: &BlogList) -> Result<(), Box<dyn std::error::Error>> {
     let span = span!(Level::DEBUG, "output tags");
     let _enter = span.enter();
 
@@ -273,7 +358,7 @@ fn output_tags_to_fs(blogs: &BlogList) -> Result<()> {
     Ok(())
 }
 
-fn output_homepage_to_fs(blogs: &BlogList) -> Result<()> {
+fn output_homepage_to_fs(blogs: &BlogList) -> Result<(), Box<dyn std::error::Error>> {
     let span = span!(Level::DEBUG, "output homepage");
     let _enter = span.enter();
     info!("outputting homepage");
@@ -285,109 +370,4 @@ fn output_homepage_to_fs(blogs: &BlogList) -> Result<()> {
     fs::write("./output/home.html", contents)?;
 
     Ok(())
-}
-
-fn render_blog(blog_path: &PathBuf, blog_list: &mut BlogList) -> Result<()> {
-    let span = span!(Level::DEBUG, "render post", post = %blog_path.as_path().display());
-    let _enter = span.enter();
-
-    trace!("reading post from fs");
-    let blog_bytes = fs::read(blog_path)?;
-    let blog_contents = std::str::from_utf8(&blog_bytes)?;
-
-    // Generate HTML
-    let html_output = render_html_page_from_markdown(blog_contents);
-
-    // get metadata options
-    let blog_metadata = {
-        debug!("extracting metadata from file");
-        let Some(blog_metadata_string) = blog_contents.split("---").nth(1) else {
-            return Err(color_eyre::eyre::eyre!("Didnt include metadata for file"));
-        };
-
-        let mut blog_metadata: BlogMetadata = serde_yaml::from_str(blog_metadata_string)?;
-
-        // Remove '#' prefix from each tag if present
-        if let Some(tags) = &mut blog_metadata.tags {
-            for tag in tags.iter_mut() {
-                if let Some(stripped) = tag.strip_prefix('#') {
-                    *tag = stripped.to_string();
-                }
-            }
-        }
-
-        blog_metadata
-    };
-
-    // TODO Chaneg to maybe add a date suffix maybe from file creation date?
-    debug!("getting post title");
-    let blog_title = blog_path
-        .file_name()
-        .expect("Path returned is ..")
-        .to_str()
-        .unwrap()
-        .strip_suffix(".md")
-        .expect("Path should have .md extension when making blog title");
-
-    let blog_slug = blog_title.replace(' ', "-").to_ascii_lowercase();
-
-    let blog = Blog {
-        title: String::from(blog_title),
-        slug: blog_slug.clone(),
-        metadata: blog_metadata,
-        contents: html_output,
-    };
-
-    // Insert blog into list
-    // FIXME change to not clone each time, probably using &str
-
-    let blog_slug = blog_title.replace(' ', "-").to_ascii_lowercase();
-    let slug_for_insertion = blog_slug.clone(); // used only if needed
-
-    if let Some(tags) = &blog.metadata.tags {
-        let span = span!(Level::DEBUG, "insert tags");
-        let _enter = span.enter();
-
-        for tag in tags {
-            let tag = tag.as_str(); // keep &str where possible
-            blog_list
-                .tags
-                .entry(tag.to_string()) // required allocation
-                .or_default()
-                .insert(slug_for_insertion.clone()); // still cloned per insert
-        }
-    }
-
-    blog_list.blogs.push(blog);
-
-    Ok(())
-}
-
-fn render_html_page_from_markdown(input: &str) -> String {
-    let span = span!(Level::INFO, "pullmark parsing");
-    let _enter = span.enter();
-
-    let mut pullmark_options = Options::empty();
-    pullmark_options.insert(Options::ENABLE_WIKILINKS);
-    pullmark_options.insert(Options::ENABLE_STRIKETHROUGH);
-    pullmark_options.insert(Options::ENABLE_YAML_STYLE_METADATA_BLOCKS);
-    pullmark_options.insert(Options::ENABLE_TASKLISTS);
-
-    let html_output = TL_PROCESSOR.with_borrow_mut(|processer| {
-        debug!("created parser");
-        let parser = Parser::new_ext(input, pullmark_options);
-        debug!("highlighting codeblocks");
-        let parser = highlight_codeblocks(parser, processer);
-        debug!("formatting blockquotes");
-        let parser = format_blockquotes(parser);
-
-        let mut html_output = String::new();
-        pulldown_cmark::html::push_html(&mut html_output, parser);
-
-        html_output
-    });
-
-    debug!("finished parsing into html");
-
-    html_output
 }

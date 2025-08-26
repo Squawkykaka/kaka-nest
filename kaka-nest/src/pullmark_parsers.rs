@@ -80,7 +80,7 @@ where
                                 // If Handlebar render is expensive, consider a simple format! here instead.
                                 format_codeblock_html(&highlighted, Some(lang)).ok()
                             } else {
-                                format_codeblock_html(&self.code_buffer.to_string(), None).ok()
+                                format_codeblock_html(&self.code_buffer, None).ok()
                             }
                         } else {
                             format_codeblock_html(&self.code_buffer, None).ok()
