@@ -11,9 +11,11 @@ serde.workspace = true
 serde_yaml.workspace = true
 serde_json.workspace = true
 tracing.workspace = true
+actix-web.workspace = true
 tracing-subscriber.workspace = true
 shared_utils = { path = "../shared_utils" }
 pullmark_parsers = { path = "../pullmark_parsers" }
+server_view = { path = "../server_view" }
 rss = "2.0.12"
 lol_html = "2.6.0"
 slugify = "0.1.0"

@@ -245,7 +245,11 @@ pub fn create_blog_on_system() -> Result<(), Box<dyn std::error::Error>> {
             let blog_html = blog.to_rendered_html()?;
 
             debug!("writing to filesytem");
-            fs::write(format!("./output/posts/{}.html", blog.slug), blog_html)?;
+            fs::create_dir(format!("./output/posts/{}", blog.slug))?;
+            fs::write(
+                format!("./output/posts/{}/index.html", blog.slug),
+                blog_html,
+            )?;
         }
 
         output_tags_to_fs(&posts)?;
@@ -289,7 +293,10 @@ fn output_rss_to_fs(blogs: &PostList) -> Result<(), Box<dyn std::error::Error>> 
             .categories(catagories)
             .pub_date(post.metadata.date.clone())
             .content(post.contents.clone())
-            .link(format!("https://squawkykaka.com/posts/{}.html", post.slug))
+            .link(format!(
+                "https://squawkykaka.com/posts/{}/index.html",
+                post.slug
+            ))
             .build();
 
         info!("finished post");
@@ -334,7 +341,8 @@ fn output_tags_to_fs(blogs: &PostList) -> Result<(), Box<dyn std::error::Error>>
         };
 
         debug!("writing to fs");
-        fs::write(format!("./output/tags/{stripped_tag}.html"), contents)?;
+        fs::create_dir(format!("./output/tags/{stripped_tag}"))?;
+        fs::write(format!("./output/tags/{stripped_tag}/index.html"), contents)?;
     }
 
     Ok(())
@@ -349,7 +357,7 @@ fn output_homepage_to_fs(blogs: &PostList) -> Result<(), Box<dyn std::error::Err
     let ctx = json!({ "blogs": blogs.blogs });
     let contents = HANDLEBARS.render("homepage", &ctx)?;
 
-    fs::write("./output/home.html", contents)?;
+    fs::write("./output/index.html", contents)?;
 
     Ok(())
 }
