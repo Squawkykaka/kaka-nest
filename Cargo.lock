@@ -702,7 +702,6 @@ dependencies = [
  "clap",
  "color-eyre",
  "fs_extra",
- "handlebars",
  "lol_html",
  "pulldown-cmark",
  "pullmark_parsers",

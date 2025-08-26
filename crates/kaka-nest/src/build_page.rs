@@ -232,9 +232,9 @@ pub fn create_blog_on_system() -> Result<(), Box<dyn std::error::Error>> {
     fs::create_dir_all("./output/posts")?;
     fs::create_dir_all("./output/tags")?;
 
-    // Output all blogs.
+    // Output all generated files.
     {
-        let span = span!(Level::INFO, "output blogs");
+        let span = span!(Level::INFO, "output generated files");
         let _enter = span.enter();
 
         for blog in &posts.blogs {
@@ -272,28 +272,15 @@ fn output_rss_to_fs(blogs: &PostList) -> Result<(), Box<dyn std::error::Error>> 
         let span = span!(Level::INFO, "post catagories", post = post.title);
         let _enter = span.enter();
 
-        let catagories = {
-            let mut catagories = vec![];
-
-            if let Some(tags) = post.metadata.tags.as_ref() {
-                for tag in tags {
-                    debug!(tag = tag, "new catagory");
-                    catagories.push(Category {
-                        name: tag.clone(),
-                        domain: None,
-                    });
-                }
-
-                catagories
-            } else {
-                debug!("No catagorys found");
-                catagories.push(Category {
-                    name: "no_catagory".into(),
+        let catagories: Vec<Category> = match post.metadata.tags.as_ref() {
+            Some(tags) => tags
+                .iter()
+                .map(|name| Category {
+                    name: name.clone(),
                     domain: None,
-                });
-
-                catagories
-            }
+                })
+                .collect(),
+            None => vec![],
         };
 
         let rss_post = ItemBuilder::default()
