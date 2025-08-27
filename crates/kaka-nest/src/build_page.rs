@@ -17,14 +17,16 @@ use tracing::{Level, debug, info, span, trace};
 
 use crate::util::get_blog_paths;
 
-#[derive(Debug, Serialize)]
-pub struct Post {
+#[derive(Debug, Serialize, Clone)]
+pub struct BlogPost {
     pub title: String,
+    pub url: String,
     pub slug: String,
     pub metadata: PostMetadata,
     pub contents: String,
+    pub rendered_contents: String,
 }
-impl Post {
+impl BlogPost {
     pub(crate) fn to_rendered_html(&self) -> Result<String, Box<dyn std::error::Error>> {
         let rendered_string = HANDLEBARS.render("blog", self)?;
 
@@ -69,7 +71,7 @@ impl Post {
     }
 }
 
-#[derive(Serialize, Deserialize, Debug)]
+#[derive(Serialize, Deserialize, Debug, Clone)]
 pub struct PostMetadata {
     pub date: String,
     pub published: bool,
@@ -81,21 +83,24 @@ pub struct PostMetadata {
 /// A struct containing all currently exisiting blogs & tags
 #[derive(Default, Debug)]
 pub struct PostList {
-    pub blogs: Vec<Post>,
+    pub blogs: Vec<BlogPost>,
     pub tags: HashMap<String, HashSet<String>>,
 }
 
-fn build_post_from_path(path: &Path) -> Result<Post, Box<dyn std::error::Error>> {
+fn build_post_from_path(path: &Path) -> Result<BlogPost, Box<dyn std::error::Error>> {
     let content = fs::read_to_string(path)?;
     let metadata = parse_front_matter(&content)?;
     let html = render_markdown_to_html(&content);
 
     let title = generate_title_from_path(path).ok_or("the file name is invalid")?;
-    Ok(Post {
+    let slug = slugify!(title);
+    Ok(BlogPost {
         title: title.into(), // or derive from metadata
-        slug: slugify!(title),
+        url: format!("/posts/{}", &slug),
+        slug,
         metadata,
-        contents: html,
+        contents: content,
+        rendered_contents: html,
     })
 }
 
@@ -176,6 +181,8 @@ fn build_blog_list(blog_paths: &[PathBuf]) -> Result<PostList, Box<dyn std::erro
 
         blog_list.blogs.push(blog);
     }
+
+    blog_list.create_tinysearch_index()?;
 
     Ok(blog_list)
 }
@@ -291,7 +298,7 @@ fn output_rss_to_fs(blogs: &PostList) -> Result<(), Box<dyn std::error::Error>> 
             .author(String::from("squawkykaka@gmail.com"))
             .categories(catagories)
             .pub_date(post.metadata.date.clone())
-            .content(post.contents.clone())
+            .content(post.rendered_contents.clone())
             .link(format!(
                 "https://squawkykaka.com/posts/{}/index.html",
                 post.slug
