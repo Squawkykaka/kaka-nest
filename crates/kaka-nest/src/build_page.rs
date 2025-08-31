@@ -13,6 +13,7 @@ use serde::{Deserialize, Serialize};
 use serde_json::json;
 use shared_utils::HANDLEBARS;
 use slugify::slugify;
+use tinysearch::Post as PostTrait;
 use tracing::{Level, debug, info, span, trace};
 
 use crate::util::get_blog_paths;
@@ -26,6 +27,35 @@ pub struct BlogPost {
     pub contents: String,
     pub rendered_contents: String,
 }
+
+impl PostTrait for BlogPost {
+    fn title(&self) -> &str {
+        &self.title
+    }
+
+    fn url(&self) -> &str {
+        &self.url
+    }
+
+    fn body(&self) -> Option<&str> {
+        Some(&self.contents)
+    }
+
+    fn meta(&self) -> HashMap<String, String> {
+        let mut meta = HashMap::new();
+        match &self.metadata.tags {
+            Some(tags) => {
+                for tag in tags {
+                    meta.insert("tag".to_string(), tag.clone());
+                }
+            }
+            None => return meta,
+        }
+
+        meta
+    }
+}
+
 impl BlogPost {
     pub(crate) fn to_rendered_html(&self) -> Result<String, Box<dyn std::error::Error>> {
         let rendered_string = HANDLEBARS.render("blog", self)?;
@@ -160,7 +190,7 @@ fn parse_front_matter(content: &str) -> Result<PostMetadata, Box<dyn std::error:
     Ok(blog_metadata)
 }
 
-fn build_blog_list(blog_paths: &[PathBuf]) -> Result<PostList, Box<dyn std::error::Error>> {
+pub fn build_blog_list(blog_paths: &[PathBuf]) -> Result<PostList, Box<dyn std::error::Error>> {
     let mut blog_list = PostList::default();
 
     for path in blog_paths {
@@ -181,8 +211,6 @@ fn build_blog_list(blog_paths: &[PathBuf]) -> Result<PostList, Box<dyn std::erro
 
         blog_list.blogs.push(blog);
     }
-
-    blog_list.create_tinysearch_index()?;
 
     Ok(blog_list)
 }

@@ -3,6 +3,9 @@ name = "kaka-nest"
 version = "0.1.0"
 edition = "2024"
 
+[lints]
+workspace = true
+
 [dependencies]
 color-eyre = "0.6.5"
 pulldown-cmark.workspace = true

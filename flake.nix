@@ -57,6 +57,7 @@
             pkgs.clang
             pkgs.rust-analyzer
             toolchain
+	    pkgs.wasm-pack
           ];
         };
       }

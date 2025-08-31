@@ -5,7 +5,7 @@ use std::{
 
 use color_eyre::eyre::Result;
 
-pub(crate) fn get_blog_paths() -> Result<Vec<PathBuf>> {
+pub fn get_blog_paths() -> Result<Vec<PathBuf>> {
     // TODO, move into an option in the config file
     let files = visit_dir(Path::new("./assets/blog"))?
         .into_iter()

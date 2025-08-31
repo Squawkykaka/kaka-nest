@@ -8,6 +8,10 @@ members = [
 ]
 resolver = "2"
 
+[workspace.lints.clippy]
+style = { level = "warn", priority = -1 }
+pedantic = "warn"
+
 [workspace.dependencies]
 serde = { version = "1.0.219", features = ["derive"] }
 serde_yaml = "0.9.33"

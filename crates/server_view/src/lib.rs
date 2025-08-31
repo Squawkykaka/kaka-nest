@@ -1,5 +1,3 @@
-#![warn(clippy::pedantic)]
-
 use actix_files as fs;
 use actix_web::{App, HttpServer};
 

@@ -1,13 +1,10 @@
-#![warn(clippy::pedantic)]
-use std::{str::FromStr, sync::LazyLock};
-
 use handlebars::RenderError;
 use pulldown_cmark::{CodeBlockKind, Event, Tag, TagEnd};
 use serde::Serialize;
 use shared_utils::HANDLEBARS;
+use std::{str::FromStr, sync::LazyLock};
 use syntastica::{Processor, renderer::HtmlRenderer};
 use syntastica_parsers::{Lang, LanguageSetImpl};
-use tracing::debug;
 
 pub static LEAKED_LANGSET: LazyLock<&'static LanguageSetImpl> =
     LazyLock::new(|| Box::leak(Box::new(LanguageSetImpl::new())));
