@@ -29,6 +29,7 @@
         toolchain = pkgs.rust-bin.selectLatestNightlyWith (toolchain:
           toolchain.default.override {
             extensions = ["rust-src" "rustc-codegen-cranelift-preview"];
+            targets = ["wasm32-unknown-unknown"];
           });
         naersk' = pkgs.callPackage naersk {
           cargo = toolchain;
@@ -57,7 +58,7 @@
             pkgs.clang
             pkgs.rust-analyzer
             toolchain
-	    pkgs.wasm-pack
+            pkgs.wasm-pack
           ];
         };
       }

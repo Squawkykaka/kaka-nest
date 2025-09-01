@@ -9,11 +9,12 @@ use lol_html::{HtmlRewriter, Settings, element};
 use pulldown_cmark::{Options, Parser};
 use pullmark_parsers::{TL_PROCESSOR, format_blockquotes, highlight_codeblocks};
 use rss::{Category, ChannelBuilder, ItemBuilder};
+use search_generation::compile_wasm_crate;
 use serde::{Deserialize, Serialize};
 use serde_json::json;
 use shared_utils::HANDLEBARS;
 use slugify::slugify;
-use tinysearch::Post as PostTrait;
+use tinysearch::{Post as PostTrait, TinySearch};
 use tracing::{Level, debug, info, span, trace};
 
 use crate::util::get_blog_paths;
@@ -290,6 +291,11 @@ pub fn create_blog_on_system() -> Result<(), Box<dyn std::error::Error>> {
         output_homepage_to_fs(&posts)?;
         output_rss_to_fs(&posts)?;
     }
+
+    // --- Create search index ---
+    info!("Creating search index");
+    let index = TinySearch::new().build_and_serialize_index(&posts.blogs)?;
+    compile_wasm_crate(index)?;
 
     Ok(())
 }

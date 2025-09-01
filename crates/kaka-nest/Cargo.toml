@@ -19,6 +19,7 @@ tracing-subscriber.workspace = true
 shared_utils = { path = "../shared_utils" }
 pullmark_parsers = { path = "../pullmark_parsers" }
 server_view = { path = "../server_view" }
+search_generation = { path = "../search_generation" }
 rss = "2.0.12"
 lol_html = "2.6.0"
 slugify = "0.1.0"

@@ -1,3 +1,4 @@
 /target
 /output
 perf.*
+wasm-search-crate/target

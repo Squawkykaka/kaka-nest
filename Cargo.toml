@@ -7,6 +7,7 @@ members = [
     "crates/search_generation",
 ]
 resolver = "2"
+exclude = ["wasm-search-crate"]
 
 [workspace.lints.clippy]
 style = { level = "warn", priority = -1 }
@@ -14,10 +15,10 @@ pedantic = "warn"
 
 [workspace.dependencies]
 serde = { version = "1.0.219", features = ["derive"] }
-serde_yaml = "0.9.33"
+serde_yaml = "0.9"
 serde_json = "1.0.143"
 tracing = "0.1.41"
-tracing-subscriber = "0.3.19"
+tracing-subscriber = "0.3"
 handlebars = "6.3.2"
 tinysearch = { git = "https://github.com/tinysearch/tinysearch", version = "0.9.0", branch = "tinysearch-api" }
 pulldown-cmark = { version = "0.13.0", default-features = false, features = [
