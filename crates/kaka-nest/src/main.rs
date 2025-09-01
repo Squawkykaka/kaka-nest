@@ -3,10 +3,7 @@
 use std::{fs, io};
 
 use clap::{Parser, Subcommand};
-use kaka_nest::{
-    build_page::{build_blog_list, create_blog_on_system},
-    util::get_blog_paths,
-};
+use kaka_nest::{build_page::PostList, util::get_blog_paths};
 use server_view::start_file_server;
 use tinysearch::TinySearch;
 
@@ -35,12 +32,12 @@ async fn main() -> color_eyre::eyre::Result<()> {
 
     match args.command.unwrap_or(Commands::Build) {
         Commands::Build => {
-            create_blog_on_system().unwrap();
+            PostList::output_to_system().unwrap();
         }
         Commands::Serve => start_file_server().await?,
         Commands::Search { query } => {
             let blog_paths = get_blog_paths()?;
-            let posts = build_blog_list(&blog_paths).unwrap();
+            let posts = PostList::from_paths(&blog_paths).unwrap();
 
             let tinyesearch = TinySearch::new();
             let index = tinyesearch.build_index(&posts.blogs).unwrap();

@@ -1,4 +1,8 @@
-use std::{fs, io, path::Path, process::Command};
+use std::{
+    fs, io,
+    path::{Path, PathBuf},
+    process::Command,
+};
 
 use tempdir::TempDir;
 
@@ -9,7 +13,7 @@ use tempdir::TempDir;
 /// - Copying wasm crate files
 /// - Running wasm-pack
 /// - Copying output
-pub fn compile_wasm_crate(index: Vec<u8>) -> io::Result<()> {
+pub fn compile_wasm_crate(index: Vec<u8>, path: &Path) -> io::Result<()> {
     let temp_dir = TempDir::new("kaka-nest-wasm")?;
 
     create_wasm_crate(temp_dir.path(), index)?;
@@ -23,7 +27,7 @@ pub fn compile_wasm_crate(index: Vec<u8>) -> io::Result<()> {
         .output()?;
 
     // Copy generated wasm
-    copy_dir_all(temp_dir.path().join("pkg"), "./output/wasm-pkg")?;
+    copy_dir_all(temp_dir.path().join("pkg"), path)?;
 
     Ok(())
 }

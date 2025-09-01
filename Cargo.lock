@@ -1278,6 +1278,7 @@ dependencies = [
  "server_view",
  "shared_utils",
  "slugify",
+ "tempdir",
  "tinysearch",
  "tracing",
  "tracing-subscriber",
