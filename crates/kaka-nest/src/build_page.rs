@@ -43,15 +43,11 @@ impl PostTrait for BlogPost {
 
     fn meta(&self) -> HashMap<String, String> {
         let mut meta = HashMap::new();
-        match &self.metadata.tags {
-            Some(tags) => {
-                for tag in tags {
-                    meta.insert("tag".to_string(), tag.clone());
-                }
-            }
-            None => return meta,
+        if let Some(tags) = &self.metadata.tags {
+            // Join all tags into a single string so they are all indexed
+            // under the "tags" key (plural).
+            meta.insert("tags".to_string(), tags.join(" "));
         }
-
         meta
     }
 }
@@ -155,6 +151,7 @@ impl PostMetadata {
 pub struct PostList {
     pub blogs: Vec<BlogPost>,
     pub tags: HashMap<String, HashSet<String>>,
+
     tempdir: TempDir,
 }
 
@@ -193,7 +190,7 @@ impl PostList {
         Ok(blog_list)
     }
 
-    pub fn output_to_system() -> Result<(), Box<dyn std::error::Error>> {
+    pub fn output_to_system(build_index: bool) -> Result<(), Box<dyn std::error::Error>> {
         let blog_paths = get_blog_paths()?;
         let posts = PostList::from_paths(&blog_paths)?;
 
@@ -206,31 +203,20 @@ impl PostList {
 
         // --- Start of Copying ---
         info!("Copying static files and images");
-        let static_src = "./assets/static";
-        let images_src = "./assets/blog/images";
+        let static_src = Path::new("./assets/static");
+        let images_src = Path::new("./assets/blog/images");
         let static_dest = posts.tempdir.path();
         let images_dest = static_dest.join("images");
 
-        // -- Copy Static Files --
         let mut options = CopyOptions::new();
         options.overwrite = true;
-        let paths_to_copy: Vec<_> = fs::read_dir(static_src)?
-            .filter_map(Result::ok) // Ignore any read errors for individual entries
-            .map(|entry| entry.path())
-            .collect();
-        copy_items(&paths_to_copy, static_dest, &options)?;
 
-        // -- Copy image files --
-        fs::create_dir_all(&images_dest)?;
-        let paths_to_copy: Vec<_> = fs::read_dir(images_src)?
-            .filter_map(Result::ok) // Ignore any read errors for individual entries
-            .map(|entry| entry.path())
-            .collect();
-        copy_items(&paths_to_copy, &images_dest, &options)?;
-        info!("Finished copying blog images");
+        copy_dir_contents(static_src, static_dest, &options)?;
 
-        // --- End of Copying ---
-        info!("All file copying complete.");
+        fs::create_dir_all(&images_dest)?; // Ensure destination exists
+        copy_dir_contents(images_src, &images_dest, &options)?;
+
+        info!("Finished copying static files and images");
 
         // Create remaining output directories
         fs::create_dir_all(static_dest.join("posts"))?;
@@ -266,9 +252,11 @@ impl PostList {
         }
 
         // --- Create search index ---
-        info!("Creating search index");
-        let index = TinySearch::new().build_and_serialize_index(&posts.blogs)?;
-        compile_wasm_crate(index, static_dest.join("wasm-pkg").as_path())?;
+        if build_index {
+            info!("Creating search index");
+            let index = TinySearch::new().build_and_serialize_index(&posts.blogs)?;
+            compile_wasm_crate(index, static_dest.join("wasm-pkg").as_path())?;
+        }
 
         // Copy all items from tempdir to output using copy_items
         let tempdir_items: Vec<_> = fs::read_dir(posts.tempdir.path())?
@@ -428,4 +416,20 @@ fn render_markdown_to_html(content: &str) -> String {
 
     debug!("finished parsing into html");
     html_output
+}
+
+fn copy_dir_contents(
+    src: &Path,
+    dest: &Path,
+    options: &CopyOptions,
+) -> Result<(), Box<dyn std::error::Error>> {
+    if !src.exists() {
+        return Ok(()); // Or return an error if the source dir is required
+    }
+    let paths_to_copy: Vec<_> = fs::read_dir(src)?
+        .filter_map(Result::ok)
+        .map(|entry| entry.path())
+        .collect();
+    fs_extra::copy_items(&paths_to_copy, dest, options)?;
+    Ok(())
 }

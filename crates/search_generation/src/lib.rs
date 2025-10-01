@@ -1,7 +1,7 @@
 use std::{
     fs, io,
     path::{Path, PathBuf},
-    process::Command,
+    process::{Command, Stdio},
 };
 
 use tempdir::TempDir;
@@ -15,6 +15,7 @@ use tempdir::TempDir;
 /// - Copying output
 pub fn compile_wasm_crate(index: Vec<u8>, path: &Path) -> io::Result<()> {
     let temp_dir = TempDir::new("kaka-nest-wasm")?;
+    let pkg_path = temp_dir.path().join("pkg");
 
     create_wasm_crate(temp_dir.path(), index)?;
 
@@ -24,10 +25,15 @@ pub fn compile_wasm_crate(index: Vec<u8>, path: &Path) -> io::Result<()> {
         .arg("--target")
         .arg("web")
         .current_dir(temp_dir.path())
+        .stdout(Stdio::inherit())
         .output()?;
 
     // Copy generated wasm
-    copy_dir_all(temp_dir.path().join("pkg"), path)?;
+    fs::copy(pkg_path.join("wasm_search.js"), path.join("wasm_search.js"))?;
+    fs::copy(
+        pkg_path.join("wasm_search_bg.wasm"),
+        path.join("wasm_search_bg.wasm"),
+    )?;
 
     Ok(())
 }

@@ -1,3 +1,4 @@
+use std::sync::LazyLock;
 use tinysearch::TinySearch;
 use wasm_bindgen::prelude::*;
 
@@ -5,11 +6,11 @@ use wasm_bindgen::prelude::*;
 static TINYSEARCH_INDEX_BYTES: &[u8] = include_bytes!("index");
 
 // One-time deserialized index
-// static TINYSEARCH_INDEX: LazyLock<TinySearchIndex> = LazyLock::new(|| {
-//     let bob = TinySearch::new()
-//         .load_index_from_bytes(TINYSEARCH_INDEX_BYTES)
-//         .expect("Failed to load TinySearch index");
-// });
+static TINYSEARCH_INDEX: LazyLock<SearchIndex> = LazyLock::new(|| {
+    let bob = TinySearch::new()
+        .load_index_from_bytes(TINYSEARCH_INDEX_BYTES)
+        .expect("Failed to load TinySearch index");
+});
 
 #[wasm_bindgen]
 pub fn tinysearch_search(query: &str) -> JsValue {

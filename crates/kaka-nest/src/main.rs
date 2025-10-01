@@ -13,7 +13,7 @@ struct Cli {
     verbose: bool,
 
     #[command(subcommand)]
-    command: Option<Commands>,
+    command: Commands,
 }
 
 #[derive(Subcommand, Clone, Debug)]
@@ -30,9 +30,11 @@ async fn main() -> color_eyre::eyre::Result<()> {
 
     let args = Cli::parse();
 
-    match args.command.unwrap_or(Commands::Build) {
+    match args.command {
         Commands::Build => {
-            PostList::output_to_system().unwrap();
+            let build_index = false;
+
+            PostList::output_to_system(build_index).unwrap();
         }
         Commands::Serve => start_file_server().await?,
         Commands::Search { query } => {
